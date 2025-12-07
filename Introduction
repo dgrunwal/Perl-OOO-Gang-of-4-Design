@@ -1,0 +1,64 @@
+This year I decided to do something a little different than normal for the Advent season. For the last several years, I participated in the "Advent of Code". Advent of Code is an Advent calendar of small programming puzzles for a variety of skill levels that can be solved in any programming language you like. People use them as interview prep, company training, university coursework, practice problems, a speed contest, or to challenge each other.
+
+This year I am taking on Perl Object Oriented Programming and publishing my journey. When you teach something you learn the subject matter twice! You pick up things you never knew and so blogging and teaching are worthwhile!
+
+The code will be added and downloadable from GitHub in the Resources section below.  All code was tested in Strawberry Perl 5.40 and should run on any version. 
+
+What Are "Gang of Four" Design Patterns?
+
+The Gang of Four (GoF) refers to the four authors (Erich Gamma, Richard Helm, Ralph Johnson, and John Vlissides) of the influential 1994 book "Design Patterns: Elements of Reusable Object-Oriented Software," which describes 23 classic software design patterns.
+
+These patterns are reusable solutions to common software design problems in object-oriented programming. They're divided into three categories: Creational, Structural, and Behavioral patterns, each serving a different purpose.
+Design Patterns in Perl Context
+
+Perl implements these patterns differently than traditional OO languages like C++ or Java because Perl has unique features that make some patterns simpler or even unnecessary.
+
+How Perl's Features Affect Patterns:
+
+Many patterns can be implemented with code references (callbacks) in Perl - the Strategy and Template Method patterns can use code references, Builder builds structures with hash and array references, and Interpreters can use simple tools like split or Parse::RecDescent.
+Languages without code references are missing an important type - Perl's code references allow implementing many patterns without creating multiple classes whose sole purpose is to provide one function.  I've taken Anwar's "Design Patterns in Modern Perl" as a sort of template to introduce each design with notes on usage.  
+
+The 22 Gang of Four Patterns
+
+Creational Patterns (Object Creation)
+
+Factory Method - Creates objects without specifying exact class
+Abstract Factory - Creates families of related objects
+Singleton - Ensures only one instance exists
+Prototype - Creates objects by cloning
+Builder - Constructs complex objects step-by-step
+
+Structural Patterns (Object Composition)
+
+Adapter - Makes incompatible interfaces work together
+Bridge - Separates abstraction from implementation
+Composite - Treats individual objects and compositions uniformly
+Decorator - Adds behavior dynamically
+Facade - Provides simplified interface
+Proxy - Controls access to another object
+
+Behavioral Patterns (Object Interaction)
+
+Chain of Responsibility - Passes requests along a chain
+Command - Encapsulates requests as objects
+Interpreter - Implements a language grammar
+Iterator - Accesses elements sequentially
+Mediator - Reduces coupling between objects
+Memento - Captures and restores object state
+Observer - Notifies dependents of state changes
+State - Changes behavior when state changes
+Strategy - Selects algorithm at runtime
+Template Method - Defines algorithm skeleton
+Visitor - Separates algorithms from object structure
+
+Examples of GoF Patterns in Perl## Key Takeaways About GoF Patterns in Perl:
+
+* Perl's flexibility simplifies many patterns - Code references replace entire class hierarchies
+* Some patterns are built into Perl - Iterator (foreach), Singleton (BEGIN blocks), Decorator (pipes)
+* Patterns are language-agnostic concepts - The principles apply, but implementation varies
+* Don't over-engineer - Use patterns when they solve real problems, not just to use them
+* The Gang of Four patterns remain valuable for understanding software design, but Perl's dynamic nature often provides simpler, more elegant implementations than the C++/Java examples in the original book!
+
+Resources
+
+https://www.geeksforgeeks.org/system-design/gang-of-four-gof-design-patterns/
