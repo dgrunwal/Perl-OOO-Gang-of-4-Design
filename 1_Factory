@@ -1,0 +1,128 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use v5.20;
+
+# ============================================================================
+# 1. Shape Interface (Role)
+# ============================================================================
+package Shape;
+use Moo::Role;
+requires qw/draw/;
+
+# ============================================================================
+# 2. Concrete Shape Implementations
+# ============================================================================
+package Shape::Circle;
+use Moo;
+with qw/Shape/;
+sub draw { 'Drawing a Circle' }
+
+package Shape::Rectangle;
+use Moo;
+with qw/Shape/;
+sub draw { 'Drawing a Rectangle' }
+
+package Shape::Square;
+use Moo;
+with qw/Shape/;
+sub draw { 'Drawing a Square' }
+
+# ============================================================================
+# 3. Shape Factory (Factory Method)
+# ============================================================================
+package ShapeFactory;
+use Moo;
+
+# Dispatch table mapping shape types to classes
+my %shape_map = (
+    CIRCLE    => 'Shape::Circle',
+    RECTANGLE => 'Shape::Rectangle',
+    SQUARE    => 'Shape::Square',
+);
+
+sub getShape {
+    my ($self, $shapeType) = @_;
+    
+    # Convert to uppercase for case-insensitive matching
+    my $type = uc($shapeType);
+    
+    # Get the class name from dispatch table
+    my $class = $shape_map{$type};
+    
+    # Return undef if shape type not found
+    return unless $class;
+    
+    # Create and return the shape object
+    return $class->new;
+}
+
+# ============================================================================
+# 4. Main Demo
+# ============================================================================
+package main;
+
+say "=" x 60;
+say "Factory Method Pattern - Shape Factory Demo";
+say "=" x 60;
+
+# Create the factory
+my $factory = ShapeFactory->new;
+
+# Test 1: Create a Circle
+say "\n--- Test 1: Creating Circle ---";
+my $shape1 = $factory->getShape('CIRCLE');
+if ($shape1) {
+    say $shape1->draw;
+} else {
+    say "Failed to create shape";
+}
+
+# Test 2: Create a Square
+say "\n--- Test 2: Creating Square ---";
+my $shape2 = $factory->getShape('SQUARE');
+if ($shape2) {
+    say $shape2->draw;
+}
+
+# Test 3: Create a Rectangle
+say "\n--- Test 3: Creating Rectangle ---";
+my $shape3 = $factory->getShape('RECTANGLE');
+if ($shape3) {
+    say $shape3->draw;
+}
+
+# Test 4: Case-insensitive
+say "\n--- Test 4: Case-insensitive (lowercase 'circle') ---";
+my $shape4 = $factory->getShape('circle');
+if ($shape4) {
+    say $shape4->draw;
+}
+
+# Test 5: Invalid shape type
+say "\n--- Test 5: Invalid shape type (Triangle) ---";
+my $shape5 = $factory->getShape('TRIANGLE');
+if ($shape5) {
+    say $shape5->draw;
+} else {
+    say "Shape type 'TRIANGLE' not found - factory returned undef";
+}
+
+# Test 6: Demonstrate factory in action
+say "\n--- Test 6: Factory in Action ---";
+my @shapes_to_create = qw/Circle Square Rectangle Circle Square/;
+
+for my $shape_type (@shapes_to_create) {
+    my $shape = $factory->getShape($shape_type);
+    say "  $shape_type -> " . $shape->draw if $shape;
+}
+
+say "\n" . "=" x 60;
+say "Benefits of Factory Method Pattern:";
+say "=" x 60;
+say "✓ Client doesn't need to know concrete shape classes";
+say "✓ Easy to add new shapes (just update dispatch table)";
+say "✓ Centralizes object creation logic";
+say "✓ Supports loose coupling";
+say "✓ Case-insensitive shape type handling";
+say "=" x 60;
