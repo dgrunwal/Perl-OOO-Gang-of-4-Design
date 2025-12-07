@@ -1,0 +1,225 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use v5.40;
+
+# ============================================================================
+# Example 1: Simple Singleton - Configuration Manager
+# ============================================================================
+package ConfigManager;
+use strict;
+use warnings;
+
+my $instance;  # Private class variable holds the single instance
+
+sub instance {
+    my ($class) = @_;
+    
+    # Create instance only if it doesn't exist
+    $instance //= bless {
+        config => {},
+    }, $class;
+    
+    return $instance;
+}
+
+sub set {
+    my ($self, $key, $value) = @_;
+    $self->{config}{$key} = $value;
+}
+
+sub get {
+    my ($self, $key) = @_;
+    return $self->{config}{$key};
+}
+
+# ============================================================================
+# Example 2: Singleton Logger
+# ============================================================================
+package Logger;
+use strict;
+use warnings;
+
+my $logger_instance;
+
+sub instance {
+    my ($class) = @_;
+    $logger_instance //= bless {
+        log_count => 0,
+    }, $class;
+    return $logger_instance;
+}
+
+sub log {
+    my ($self, $message) = @_;
+    $self->{log_count}++;
+    printf "[Log #%d] %s\n", $self->{log_count}, $message;
+}
+
+sub get_log_count {
+    my ($self) = @_;
+    return $self->{log_count};
+}
+
+# ============================================================================
+# Example 3: Singleton Database Connection
+# ============================================================================
+package DatabaseConnection;
+use strict;
+use warnings;
+
+my $db_instance;
+
+sub instance {
+    my ($class) = @_;
+    
+    unless ($db_instance) {
+        print ">>> Creating NEW database connection <<<\n";
+        $db_instance = bless {
+            connected => 1,
+            queries   => 0,
+        }, $class;
+    }
+    
+    return $db_instance;
+}
+
+sub query {
+    my ($self, $sql) = @_;
+    $self->{queries}++;
+    return "Executing: $sql (Total queries: $self->{queries})";
+}
+
+sub is_connected {
+    my ($self) = @_;
+    return $self->{connected};
+}
+
+# ============================================================================
+# Main Demo
+# ============================================================================
+package main;
+
+print "=" x 70 . "\n";
+print "Singleton Pattern Demonstration\n";
+print "=" x 70 . "\n\n";
+
+# -------------------------------------------------------------------
+# Demo 1: Configuration Manager (Always the same instance)
+# -------------------------------------------------------------------
+print "--- Demo 1: Configuration Manager ---\n";
+
+my $config1 = ConfigManager->instance;
+$config1->set('app_name', 'MyApp');
+$config1->set('version', '1.0');
+
+my $config2 = ConfigManager->instance;
+print "Config1 app_name: " . $config1->get('app_name') . "\n";
+print "Config2 app_name: " . $config2->get('app_name') . "\n";
+
+# Prove they're the same instance
+if ($config1 == $config2) {
+    print "config1 and config2 are THE SAME instance\n";
+} else {
+    print "Different instances (shouldn't happen!)\n";
+}
+
+# -------------------------------------------------------------------
+# Demo 2: Logger (Shared log count)
+# -------------------------------------------------------------------
+print "\n--- Demo 2: Logger ---\n";
+
+my $logger1 = Logger->instance;
+$logger1->log("Application started");
+
+my $logger2 = Logger->instance;
+$logger2->log("Processing data");
+
+my $logger3 = Logger->instance;
+$logger3->log("Task completed");
+
+print "Total logs from logger1: " . $logger1->get_log_count . "\n";
+print "Total logs from logger2: " . $logger2->get_log_count . "\n";
+print "Total logs from logger3: " . $logger3->get_log_count . "\n";
+
+if ($logger1 == $logger2 && $logger2 == $logger3) {
+    print "All loggers are THE SAME instance\n";
+}
+
+# -------------------------------------------------------------------
+# Demo 3: Database Connection (Only created once)
+# -------------------------------------------------------------------
+print "\n--- Demo 3: Database Connection ---\n";
+
+print "First request:\n";
+my $db1 = DatabaseConnection->instance;
+print $db1->query("SELECT * FROM users") . "\n";
+
+print "\nSecond request:\n";
+my $db2 = DatabaseConnection->instance;
+print $db2->query("SELECT * FROM orders") . "\n";
+
+print "\nThird request:\n";
+my $db3 = DatabaseConnection->instance;
+print $db3->query("UPDATE products SET price = 10") . "\n";
+
+if ($db1 == $db2 && $db2 == $db3) {
+    print "All database connections are THE SAME instance\n";
+}
+
+# -------------------------------------------------------------------
+# Summary
+# -------------------------------------------------------------------
+print "\n" . "=" x 70 . "\n";
+print "Key Benefits of Singleton Pattern:\n";
+print "=" x 70 . "\n";
+print "Controlled access to sole instance\n";
+print "Reduced namespace pollution\n";
+print "Shared state across entire application\n";
+print "Lazy initialization (created only when needed)\n";
+print "Perfect for: configs, loggers, DB connections, caches\n";
+print "=" x 70 . "\n";
+
+
+/*
+======================================================================
+Singleton Pattern Demonstration
+======================================================================
+
+--- Demo 1: Configuration Manager ---
+Config1 app_name: MyApp
+Config2 app_name: MyApp
+config1 and config2 are THE SAME instance
+
+--- Demo 2: Logger ---
+[Log #1] Application started
+[Log #2] Processing data
+[Log #3] Task completed
+Total logs from logger1: 3
+Total logs from logger2: 3
+Total logs from logger3: 3
+All loggers are THE SAME instance
+
+--- Demo 3: Database Connection ---
+First request:
+>>> Creating NEW database connection <<<
+Executing: SELECT * FROM users (Total queries: 1)
+
+Second request:
+Executing: SELECT * FROM orders (Total queries: 2)
+
+Third request:
+Executing: UPDATE products SET price = 10 (Total queries: 3)
+All database connections are THE SAME instance
+
+======================================================================
+Key Benefits of Singleton Pattern:
+======================================================================
+Controlled access to sole instance
+Reduced namespace pollution
+Shared state across entire application
+Lazy initialization (created only when needed)
+Perfect for: configs, loggers, DB connections, caches
+======================================================================
+
+*/
