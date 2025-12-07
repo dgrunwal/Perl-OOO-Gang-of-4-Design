@@ -1,0 +1,192 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# Abstract Database Connection Class
+package DatabaseConnection;
+
+sub new {
+    my ($class) = @_;
+    die "Cannot instantiate abstract class DatabaseConnection directly";
+}
+
+sub connect {
+    my ($self) = @_;
+    die "Abstract method 'connect' must be implemented by subclass";
+}
+
+sub disconnect {
+    my ($self) = @_;
+    die "Abstract method 'disconnect' must be implemented by subclass";
+}
+
+sub execute_query {
+    my ($self, $query) = @_;
+    die "Abstract method 'execute_query' must be implemented by subclass";
+}
+
+# Oracle Database Connection
+package OracleConnection;
+our @ISA = qw(DatabaseConnection);
+
+sub new {
+    my ($class, $host, $port, $database) = @_;
+    my $self = {
+        host     => $host,
+        port     => $port || 1521,
+        database => $database,
+        connection => undef,
+    };
+    return bless $self, $class;
+}
+
+sub connect {
+    my ($self) = @_;
+    print "Connecting to Oracle database...\n";
+    print "Host: $self->{host}, Port: $self->{port}, DB: $self->{database}\n";
+    # Simulated connection
+    $self->{connection} = "Oracle:DBI:connection";
+    print "Oracle connection established.\n";
+    return $self->{connection};
+}
+
+sub disconnect {
+    my ($self) = @_;
+    print "Disconnecting from Oracle database...\n";
+    $self->{connection} = undef;
+    print "Oracle connection closed.\n";
+}
+
+sub execute_query {
+    my ($self, $query) = @_;
+    print "Executing Oracle query: $query\n";
+    return "Oracle query result";
+}
+
+# MSSQL Database Connection
+package MSSQLConnection;
+our @ISA = qw(DatabaseConnection);
+
+sub new {
+    my ($class, $host, $port, $database) = @_;
+    my $self = {
+        host     => $host,
+        port     => $port || 1433,
+        database => $database,
+        connection => undef,
+    };
+    return bless $self, $class;
+}
+
+sub connect {
+    my ($self) = @_;
+    print "Connecting to MSSQL database...\n";
+    print "Host: $self->{host}, Port: $self->{port}, DB: $self->{database}\n";
+    # Simulated connection
+    $self->{connection} = "MSSQL:DBI:connection";
+    print "MSSQL connection established.\n";
+    return $self->{connection};
+}
+
+sub disconnect {
+    my ($self) = @_;
+    print "Disconnecting from MSSQL database...\n";
+    $self->{connection} = undef;
+    print "MSSQL connection closed.\n";
+}
+
+sub execute_query {
+    my ($self, $query) = @_;
+    print "Executing MSSQL query: $query\n";
+    return "MSSQL query result";
+}
+
+# MySQL Database Connection
+package MySQLConnection;
+our @ISA = qw(DatabaseConnection);
+
+sub new {
+    my ($class, $host, $port, $database) = @_;
+    my $self = {
+        host     => $host,
+        port     => $port || 3306,
+        database => $database,
+        connection => undef,
+    };
+    return bless $self, $class;
+}
+
+sub connect {
+    my ($self) = @_;
+    print "Connecting to MySQL database...\n";
+    print "Host: $self->{host}, Port: $self->{port}, DB: $self->{database}\n";
+    # Simulated connection
+    $self->{connection} = "MySQL:DBI:connection";
+    print "MySQL connection established.\n";
+    return $self->{connection};
+}
+
+sub disconnect {
+    my ($self) = @_;
+    print "Disconnecting from MySQL database...\n";
+    $self->{connection} = undef;
+    print "MySQL connection closed.\n";
+}
+
+sub execute_query {
+    my ($self, $query) = @_;
+    print "Executing MySQL query: $query\n";
+    return "MySQL query result";
+}
+
+# Database Factory (Abstract Factory Pattern)
+package DatabaseFactory;
+
+sub new {
+    my ($class) = @_;
+    my $self = {};
+    return bless $self, $class;
+}
+
+sub create_connection {
+    my ($self, $db_type, $host, $port, $database) = @_;
+    
+    if ($db_type eq 'oracle') {
+        return OracleConnection->new($host, $port, $database);
+    } elsif ($db_type eq 'mssql') {
+        return MSSQLConnection->new($host, $port, $database);
+    } elsif ($db_type eq 'mysql') {
+        return MySQLConnection->new($host, $port, $database);
+    } else {
+        die "Unknown database type: $db_type";
+    }
+}
+
+# Main Program
+package main;
+
+print "=== Database Abstract Factory Pattern Demo ===\n\n";
+
+# Create factory
+my $factory = DatabaseFactory->new();
+
+# Create Oracle connection
+print "--- Oracle Database ---\n";
+my $oracle = $factory->create_connection('oracle', 'oracle.example.com', 1521, 'PRODDB');
+$oracle->connect();
+$oracle->execute_query("SELECT * FROM employees");
+$oracle->disconnect();
+
+print "\n--- MSSQL Database ---\n";
+my $mssql = $factory->create_connection('mssql', 'mssql.example.com', 1433, 'SalesDB');
+$mssql->connect();
+$mssql->execute_query("SELECT * FROM customers");
+$mssql->disconnect();
+
+print "\n--- MySQL Database ---\n";
+my $mysql = $factory->create_connection('mysql', 'mysql.example.com', 3306, 'WebDB');
+$mysql->connect();
+$mysql->execute_query("SELECT * FROM users");
+$mysql->disconnect();
+
+print "\n=== Demo Complete ===\n";
