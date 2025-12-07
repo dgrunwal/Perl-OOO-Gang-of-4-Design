@@ -1,0 +1,39 @@
+## Adding Triangle Shape shows how easy it is to add to the Factory example
+
+**Step 1: Create the Triangle class (add anywhere with other shapes)**
+```perl
+package Shape::Triangle;
+use Moo;
+with qw/Shape/;
+sub draw { 'Drawing a Triangle' }
+```
+
+**Step 2: Add to the dispatch table in ShapeFactory**
+```perl
+my %shape_map = (
+    CIRCLE    => 'Shape::Circle',
+    RECTANGLE => 'Shape::Rectangle',
+    SQUARE    => 'Shape::Square',
+    TRIANGLE  => 'Shape::Triangle',  # ← Just add this line!
+);
+```
+
+## That's It!
+
+Now you can use it:
+```perl
+my $triangle = $factory->getShape('TRIANGLE');
+say $triangle->draw;  # Output: Drawing a Triangle
+```
+
+## Complete Example with TriangleDone! I've updated the artifact to include Triangle. 
+
+## Why This Is So Easy
+
+**The Factory Method pattern provides:**
+
+✅ **Only 2 places to modify** - Add class, update dispatch table  
+✅ **No client code changes** - All existing code still works  
+✅ **No other shape classes affected** - Complete isolation  
+✅ **Follows Open/Closed Principle** - Open for extension, closed for modification
+
