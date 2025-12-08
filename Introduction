@@ -9,9 +9,11 @@ What Are "Gang of Four" Design Patterns?
 The Gang of Four (GoF) refers to the four authors (Erich Gamma, Richard Helm, Ralph Johnson, and John Vlissides) of the influential 1994 book "Design Patterns: Elements of Reusable Object-Oriented Software," which describes 23 classic software design patterns.
 
 These patterns are reusable solutions to common software design problems in object-oriented programming. They're divided into three categories: Creational, Structural, and Behavioral patterns, each serving a different purpose.
+
 Design Patterns in Perl Context
 
-Perl implements these patterns differently than traditional OO languages like C++ or Java because Perl has unique features that make some patterns simpler or even unnecessary.
+Perl implements these patterns differently than traditional OO languages like C++ or Java because Perl has unique features that make some patterns simpler or even unnecessary.  The examples can be used as AI templates 
+to rapidly select and prototype OOO approaches to individual design requirements and then use them as a base for translating into other languages as needed.
 
 How Perl's Features Affect Patterns:
 
