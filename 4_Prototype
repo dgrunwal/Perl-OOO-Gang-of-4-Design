@@ -208,6 +208,40 @@ say "4. Efficient object creation without expensive initialization";
 
 /*
 
+
+OUTPUT
+
+=== Prototype Pattern Demo: Shape Caching System ===
+
+Cache loaded with prototypes
+
+--- Cloning Circle (ID: 1) ---
+Drawing Circle: radius=15, color=red at (10, 20)
+
+--- Cloning another Circle and modifying it ---
+Drawing Circle: radius=15, color=yellow at (200, 250)
+
+--- Cloning Rectangle (ID: 2) ---
+Drawing Rectangle: 30x15, color=blue at (50, 60)
+
+--- Cloning another Rectangle and modifying it ---
+Drawing Rectangle: 50x15, color=purple at (50, 60)
+
+--- Cloning Triangle (ID: 3) ---
+Drawing Triangle: base=20, height=18, color=green at (100, 120)
+
+--- Original prototypes remain unchanged ---
+Original Circle: ID: 1, Type: Circle, Color: red, Position: (10, 20)
+Original Rectangle: ID: 2, Type: Rectangle, Color: blue, Position: (50, 60)
+Original Triangle: ID: 3, Type: Triangle, Color: green, Position: (100, 120)
+
+=== Key Benefits Demonstrated ===
+1. Objects created by cloning existing prototypes
+2. No need to know exact class types at runtime
+3. Modifications to clones don't affect prototypes
+4. Efficient object creation without expensive initialization
+
+
 Prototype Features
 
 Deep Cloning - Uses Storable::dclone to create complete independent copies of objects, including all nested data structures. Changes to clones don't affect the original prototype.
