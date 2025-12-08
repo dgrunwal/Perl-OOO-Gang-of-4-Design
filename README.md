@@ -58,6 +58,7 @@ Examples of GoF Patterns in Perl## Key Takeaways About GoF Patterns in Perl:
 * Some patterns are built into Perl - Iterator (foreach), Singleton (BEGIN blocks), Decorator (pipes)
 * Patterns are language-agnostic concepts - The principles apply, but implementation varies
 * Don't over-engineer - Use patterns when they solve real problems, not just to use them
+* These patterns can be used as AI "templates" to help select and write your applications, then translate them to other languages as needed
 * The Gang of Four patterns remain valuable for understanding software design, but Perl's dynamic nature often provides simpler, more elegant implementations than the C++/Java examples in the original book!
 
 Resources
