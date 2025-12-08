@@ -1,0 +1,228 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use feature 'say';
+
+# Abstract Shape class (prototype interface)
+package Shape {
+    use Storable qw(dclone);
+    
+    sub new {
+        my ($class, %args) = @_;
+        my $self = {
+            id => $args{id} // '',
+            type => $args{type} // '',
+            color => $args{color} // 'white',
+            x => $args{x} // 0,
+            y => $args{y} // 0,
+        };
+        return bless $self, $class;
+    }
+    
+    # Clone method - creates deep copy of the object
+    sub clone {
+        my ($self) = @_;
+        return dclone($self);
+    }
+    
+    sub draw {
+        my ($self) = @_;
+        say "Drawing a shape";
+    }
+    
+    sub get_info {
+        my ($self) = @_;
+        return sprintf("ID: %s, Type: %s, Color: %s, Position: (%d, %d)",
+            $self->{id}, $self->{type}, $self->{color}, $self->{x}, $self->{y});
+    }
+}
+
+# Concrete Prototype: Circle
+package Circle {
+    use base 'Shape';
+    our @ISA = ('Shape');
+    
+    sub new {
+        my ($class, %args) = @_;
+        my $self = $class->SUPER::new(%args);
+        $self->{type} = 'Circle';
+        $self->{radius} = $args{radius} // 10;
+        return bless $self, $class;
+    }
+    
+    sub draw {
+        my ($self) = @_;
+        say sprintf("Drawing Circle: radius=%d, color=%s at (%d, %d)",
+            $self->{radius}, $self->{color}, $self->{x}, $self->{y});
+    }
+}
+
+# Concrete Prototype: Rectangle
+package Rectangle {
+    use base 'Shape';
+    our @ISA = ('Shape');
+    
+    sub new {
+        my ($class, %args) = @_;
+        my $self = $class->SUPER::new(%args);
+        $self->{type} = 'Rectangle';
+        $self->{width} = $args{width} // 20;
+        $self->{height} = $args{height} // 10;
+        return bless $self, $class;
+    }
+    
+    sub draw {
+        my ($self) = @_;
+        say sprintf("Drawing Rectangle: %dx%d, color=%s at (%d, %d)",
+            $self->{width}, $self->{height}, $self->{color}, 
+            $self->{x}, $self->{y});
+    }
+}
+
+# Concrete Prototype: Triangle
+package Triangle {
+    use base 'Shape';
+    our @ISA = ('Shape');
+    
+    sub new {
+        my ($class, %args) = @_;
+        my $self = $class->SUPER::new(%args);
+        $self->{type} = 'Triangle';
+        $self->{base} = $args{base} // 15;
+        $self->{height} = $args{height} // 12;
+        return bless $self, $class;
+    }
+    
+    sub draw {
+        my ($self) = @_;
+        say sprintf("Drawing Triangle: base=%d, height=%d, color=%s at (%d, %d)",
+            $self->{base}, $self->{height}, $self->{color},
+            $self->{x}, $self->{y});
+    }
+}
+
+# Shape Cache - manages prototype instances
+package ShapeCache {
+    sub new {
+        my ($class) = @_;
+        my $self = {
+            shapes => {}
+        };
+        return bless $self, $class;
+    }
+    
+    # Load initial prototypes into cache
+    sub load_cache {
+        my ($self) = @_;
+        
+        my $circle = Circle->new(
+            id => '1',
+            color => 'red',
+            radius => 15,
+            x => 10,
+            y => 20
+        );
+        $self->{shapes}{$circle->{id}} = $circle;
+        
+        my $rectangle = Rectangle->new(
+            id => '2',
+            color => 'blue',
+            width => 30,
+            height => 15,
+            x => 50,
+            y => 60
+        );
+        $self->{shapes}{$rectangle->{id}} = $rectangle;
+        
+        my $triangle = Triangle->new(
+            id => '3',
+            color => 'green',
+            base => 20,
+            height => 18,
+            x => 100,
+            y => 120
+        );
+        $self->{shapes}{$triangle->{id}} = $triangle;
+        
+        say "Cache loaded with prototypes\n";
+    }
+    
+    # Get cloned shape from cache
+    sub get_shape {
+        my ($self, $id) = @_;
+        
+        my $prototype = $self->{shapes}{$id};
+        return undef unless $prototype;
+        
+        # Return a clone, not the original
+        return $prototype->clone();
+    }
+}
+
+# Client code
+package main;
+
+say "=== Prototype Pattern Demo: Shape Caching System ===\n";
+
+# Create cache and load prototypes
+my $cache = ShapeCache->new();
+$cache->load_cache();
+
+# Clone shapes from cache and customize them
+say "--- Cloning Circle (ID: 1) ---";
+my $circle1 = $cache->get_shape('1');
+$circle1->draw();
+
+say "\n--- Cloning another Circle and modifying it ---";
+my $circle2 = $cache->get_shape('1');
+$circle2->{color} = 'yellow';
+$circle2->{x} = 200;
+$circle2->{y} = 250;
+$circle2->draw();
+
+say "\n--- Cloning Rectangle (ID: 2) ---";
+my $rect1 = $cache->get_shape('2');
+$rect1->draw();
+
+say "\n--- Cloning another Rectangle and modifying it ---";
+my $rect2 = $cache->get_shape('2');
+$rect2->{color} = 'purple';
+$rect2->{width} = 50;
+$rect2->draw();
+
+say "\n--- Cloning Triangle (ID: 3) ---";
+my $tri1 = $cache->get_shape('3');
+$tri1->draw();
+
+say "\n--- Original prototypes remain unchanged ---";
+say "Original Circle: " . $cache->{shapes}{'1'}->get_info();
+say "Original Rectangle: " . $cache->{shapes}{'2'}->get_info();
+say "Original Triangle: " . $cache->{shapes}{'3'}->get_info();
+
+say "\n=== Key Benefits Demonstrated ===";
+say "1. Objects created by cloning existing prototypes";
+say "2. No need to know exact class types at runtime";
+say "3. Modifications to clones don't affect prototypes";
+say "4. Efficient object creation without expensive initialization";
+
+
+/*
+
+Prototype Features
+
+Deep Cloning - Uses Storable::dclone to create complete independent copies of objects, including all nested data structures. Changes to clones don't affect the original prototype.
+Prototype Registry (ShapeCache) - A centralized cache that stores pre-configured prototype objects and dispenses clones on demand, avoiding repeated initialization.
+Polymorphism - All shapes inherit from a common base class, allowing uniform treatment while maintaining specific behaviors (each shape draws differently).
+Lazy Object Creation - Objects are created only when needed by cloning existing prototypes, rather than instantiating from scratch every time.
+Customization After Cloning - Cloned objects can be modified (color, position, size) without affecting the cached prototypes or other clones.
+
+Real-Life Uses
+
+Database Record Copying - When creating similar database records (e.g., product listings, user profiles), clone an existing record and modify specific fields rather than re-querying or rebuilding the entire object.
+Configuration Management - System configurations where you have a "default" or "staging" configuration and need to create slightly modified versions for different environments (dev, test, production).
+UI Component Libraries - Pre-configured widgets or components (buttons, forms, panels) that can be cloned and customized rather than instantiated and configured from scratch each time.
+CAD/Design Software - Creating variations of complex designs or assemblies by cloning an existing model and tweaking dimensions or materials.
+
+The pattern shines when object creation is expensive (database queries, file I/O, complex calculations) or when you need many similar objects with slight variations.
+
+*/
