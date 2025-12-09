@@ -1,0 +1,193 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use v5.20;
+
+# ============================================================================
+# 1. Packing Interface and Implementations
+# ============================================================================
+package Packing;
+use Moo::Role;
+requires qw/pack/;
+
+package Packing::Bottle;
+use Moo;
+with qw/Packing/;
+sub pack { 'Bottle' }
+
+package Packing::Wrapper;
+use Moo;
+with qw/Packing/;
+sub pack { 'Wrapper' }
+
+# ============================================================================
+# 2. Item Interface
+# ============================================================================
+package Item;
+use Moo::Role;
+requires qw/name price packing/;
+
+# ============================================================================
+# 3. Item Categories (Burger and ColdDrink)
+# ============================================================================
+package Item::Burger;
+use Moo::Role;
+with qw/Item/;
+requires qw/name price/;
+use Packing::Wrapper;
+sub packing { Packing::Wrapper->new }
+
+package Item::ColdDrink;
+use Moo::Role;
+with qw/Item/;
+requires qw/name price/;
+use Packing::Bottle;
+sub packing { Packing::Bottle->new }
+
+# ============================================================================
+# 4. Concrete Items - Burgers
+# ============================================================================
+package Item::Burger::VegBurger;
+use Moo;
+with qw/Item::Burger/;
+sub name { 'Veg Burger' }
+sub price { 10 }
+
+package Item::Burger::ChickenBurger;
+use Moo;
+with qw/Item::Burger/;
+sub name { 'Chicken Burger' }
+sub price { 20 }
+
+# ============================================================================
+# 5. Concrete Items - Cold Drinks
+# ============================================================================
+package Item::ColdDrink::Coke;
+use Moo;
+with qw/Item::ColdDrink/;
+sub name { 'Coke' }
+sub price { 12 }
+
+package Item::ColdDrink::Pepsi;
+use Moo;
+with qw/Item::ColdDrink/;
+sub name { 'Pepsi' }
+sub price { 14 }
+
+# ============================================================================
+# 6. Meal Container
+# ============================================================================
+package Meal;
+use Moo;
+
+has 'items' => (is => 'rw', default => sub { [] });
+
+sub addItem {
+    my ($self, $item) = @_;
+    push @{$self->items}, $item;
+}
+
+sub getCost {
+    my ($self) = @_;
+    my $cost = 0;
+    $cost += $_->price for @{$self->items};
+    return $cost;
+}
+
+sub showItems {
+    my ($self) = @_;
+    for my $item (@{$self->items}) {
+        printf "Item: %-20s Packing: %-10s Price: %d\n",
+            $item->name,
+            $item->packing->pack,
+            $item->price;
+    }
+}
+
+# ============================================================================
+# 7. Meal Builder
+# ============================================================================
+package MealBuilder;
+use Moo;
+
+sub prepareVegMeal {
+    my $meal = Meal->new;
+    $meal->addItem(Item::Burger::VegBurger->new);
+    $meal->addItem(Item::ColdDrink::Coke->new);
+    return $meal;
+}
+
+sub prepareNonVegMeal {
+    my $meal = Meal->new;
+    $meal->addItem(Item::Burger::ChickenBurger->new);
+    $meal->addItem(Item::ColdDrink::Pepsi->new);
+    return $meal;
+}
+
+# ============================================================================
+# 8. Main Demo
+# ============================================================================
+package main;
+
+say "=" x 60;
+say "Builder Pattern - Meal Ordering System";
+say "=" x 60;
+
+my $mealBuilder = MealBuilder->new;
+
+# Prepare Veg Meal
+say "\n--- VEG MEAL ---";
+my $vegMeal = $mealBuilder->prepareVegMeal;
+$vegMeal->showItems;
+say "Total Cost: " . $vegMeal->getCost;
+
+# Prepare Non-Veg Meal
+say "\n--- NON-VEG MEAL ---";
+my $nonVegMeal = $mealBuilder->prepareNonVegMeal;
+$nonVegMeal->showItems;
+say "Total Cost: " . $nonVegMeal->getCost;
+
+say "\n" . "=" x 60;
+say "Demo Complete!";
+say "=" x 60;
+
+
+/*
+
+**Builder Pattern Benefits:**
+1. **Separation of Construction** - `MealBuilder` handles meal creation logic
+2. **Reusable Components** - Items, packing, and meals are modular
+3. **Clean Client Code** - Simple interface to create complex objects
+4. **Flexibility** - Easy to add new meal types or items
+
+**The Pattern Structure:**
+- **Packing** - How items are packaged (Bottle/Wrapper)
+- **Item** - Interface for food items
+- **Burger/ColdDrink** - Item categories with default packing
+- **Concrete Items** - Specific items with names and prices
+- **Meal** - Container that holds items
+- **MealBuilder** - Constructs different meal types
+
+
+OUTPUT
+
+============================================================
+Builder Pattern - Meal Ordering System
+============================================================
+
+--- VEG MEAL ---
+Item: Veg Burger           Packing: Wrapper    Price: 10
+Item: Coke                 Packing: Bottle     Price: 12
+Total Cost: 22
+
+--- NON-VEG MEAL ---
+Item: Chicken Burger       Packing: Wrapper    Price: 20
+Item: Pepsi                Packing: Bottle     Price: 14
+Total Cost: 34
+
+============================================================
+Demo Complete!
+============================================================
+
+
+*/
