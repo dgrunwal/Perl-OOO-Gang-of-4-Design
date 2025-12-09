@@ -1,0 +1,275 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use feature 'say';
+
+# Target Interface - what our client expects
+package MediaPlayer {
+    sub new {
+        my ($class) = @_;
+        return bless {}, $class;
+    }
+    
+    sub play {
+        my ($self, $audio_type, $filename) = @_;
+        die "play() must be implemented by subclass";
+    }
+}
+
+# Adaptee - Legacy MP3 player with incompatible interface
+package LegacyMP3Player {
+    sub new {
+        my ($class) = @_;
+        return bless {}, $class;
+    }
+    
+    sub play_mp3_file {
+        my ($self, $filename) = @_;
+        say "Playing MP3 file: $filename";
+        say "MP3 audio streaming... ";
+    }
+}
+
+# Adaptee - Advanced VLC player with different interface
+package AdvancedVLCPlayer {
+    sub new {
+        my ($class) = @_;
+        return bless {}, $class;
+    }
+    
+    sub play_vlc_format {
+        my ($self, $filename) = @_;
+        say "Playing VLC file: $filename";
+        say "VLC audio streaming... ";
+    }
+    
+    sub play_mp4_format {
+        my ($self, $filename) = @_;
+        say "Playing MP4 file: $filename";
+        say "MP4 video streaming... ";
+    }
+}
+
+# Adapter - Bridges the gap between incompatible interfaces
+package MediaAdapter {
+    use base 'MediaPlayer';
+    our @ISA = ('MediaPlayer');
+    
+    sub new {
+        my ($class, $audio_type) = @_;
+        my $self = $class->SUPER::new();
+        
+        # Based on audio type, create appropriate adaptee
+        if ($audio_type eq 'vlc') {
+            $self->{advanced_player} = AdvancedVLCPlayer->new();
+            $self->{type} = 'vlc';
+        } elsif ($audio_type eq 'mp4') {
+            $self->{advanced_player} = AdvancedVLCPlayer->new();
+            $self->{type} = 'mp4';
+        } elsif ($audio_type eq 'mp3') {
+            $self->{legacy_player} = LegacyMP3Player->new();
+            $self->{type} = 'mp3';
+        }
+        
+        return bless $self, $class;
+    }
+    
+    sub play {
+        my ($self, $audio_type, $filename) = @_;
+        
+        # Translate the call to the appropriate adaptee method
+        if ($audio_type eq 'vlc') {
+            $self->{advanced_player}->play_vlc_format($filename);
+        } elsif ($audio_type eq 'mp4') {
+            $self->{advanced_player}->play_mp4_format($filename);
+        } elsif ($audio_type eq 'mp3') {
+            $self->{legacy_player}->play_mp3_file($filename);
+        }
+    }
+}
+
+# Concrete implementation - Audio Player that uses adapter
+package AudioPlayer {
+    use base 'MediaPlayer';
+    our @ISA = ('MediaPlayer');
+    
+    sub new {
+        my ($class) = @_;
+        return bless {}, $class;
+    }
+    
+    sub play {
+        my ($self, $audio_type, $filename) = @_;
+        
+        # Built-in support for basic mp3
+        if ($audio_type eq 'mp3') {
+            say "Playing MP3 file (built-in): $filename";
+            say "Standard MP3 playback... ";
+        }
+        # Use adapter for other formats
+        elsif ($audio_type eq 'vlc' || $audio_type eq 'mp4') {
+            my $adapter = MediaAdapter->new($audio_type);
+            $adapter->play($audio_type, $filename);
+        }
+        else {
+            say "Invalid media format: $audio_type. Supported: mp3, vlc, mp4";
+        }
+    }
+}
+
+# ========== EXAMPLE 2: Power Adapter ==========
+
+# European Socket (Target Interface)
+package EuropeanSocket {
+    sub new {
+        my ($class) = @_;
+        return bless {}, $class;
+    }
+    
+    sub provide_power {
+        my ($self) = @_;
+        die "provide_power() must be implemented";
+    }
+}
+
+# American Plug (Adaptee - incompatible interface)
+package AmericanPlug {
+    sub new {
+        my ($class) = @_;
+        return bless {
+            voltage => 110,
+            plug_type => 'Type A (flat blades)'
+        }, $class;
+    }
+    
+    sub connect_to_american_outlet {
+        my ($self) = @_;
+        say "American plug connected: " . $self->{voltage} . "V, " . 
+            $self->{plug_type};
+        return "110V AC Power";
+    }
+}
+
+# Power Adapter
+package PowerAdapter {
+    use base 'EuropeanSocket';
+    our @ISA = ('EuropeanSocket');
+    
+    sub new {
+        my ($class, $american_plug) = @_;
+        my $self = $class->SUPER::new();
+        $self->{american_plug} = $american_plug;
+        return bless $self, $class;
+    }
+    
+    sub provide_power {
+        my ($self) = @_;
+        say "\n[Power Adapter translating...]";
+        my $power = $self->{american_plug}->connect_to_american_outlet();
+        say "Converting to European standard: 220V, Type C (round pins)";
+        return "220V AC Power (adapted from 110V)";
+    }
+}
+
+# Client Code
+package main;
+
+say "=" x 60;
+say "ADAPTER PATTERN DEMO";
+say "=" x 60;
+
+say "\n### EXAMPLE 1: Media Player Adapter ###\n";
+
+my $player = AudioPlayer->new();
+
+say "--- Playing different media formats ---\n";
+$player->play('mp3', 'song.mp3');
+
+say "\n";
+$player->play('vlc', 'movie.vlc');
+
+say "\n";
+$player->play('mp4', 'video.mp4');
+
+say "\n";
+$player->play('avi', 'clip.avi');
+
+say "\n" . "=" x 60;
+say "### EXAMPLE 2: Power Adapter (Travel Scenario) ###";
+say "=" x 60;
+
+say "\nScenario: Using American device in Europe\n";
+
+my $american_device = AmericanPlug->new();
+say "American device specs: " . $american_device->{voltage} . "V";
+
+say "\nDirect connection attempt:";
+say "Cannot connect - incompatible socket!";
+
+say "\nUsing power adapter:";
+my $adapter = PowerAdapter->new($american_device);
+my $power = $adapter->provide_power();
+say "Device successfully powered: $power";
+
+say "\n" . "=" x 60;
+say "KEY BENEFITS DEMONSTRATED";
+say "=" x 60;
+say "1. Incompatible interfaces work together seamlessly";
+say "2. No modification to existing (legacy) code required";
+say "3. Client uses consistent interface regardless of adaptee";
+say "4. Easy to add support for new formats/devices";
+say "5. Separation of concerns - adapter handles translation";
+
+
+/*
+
+============================================================
+ADAPTER PATTERN DEMO
+============================================================
+
+### EXAMPLE 1: Media Player Adapter ###
+
+--- Playing different media formats ---
+
+Playing MP3 file (built-in): song.mp3
+Standard MP3 playback...
+
+
+Playing VLC file: movie.vlc
+VLC audio streaming...
+
+
+Playing MP4 file: video.mp4
+MP4 video streaming...
+
+
+Invalid media format: avi. Supported: mp3, vlc, mp4
+
+============================================================
+### EXAMPLE 2: Power Adapter (Travel Scenario) ###
+============================================================
+
+Scenario: Using American device in Europe
+
+American device specs: 110V
+
+Direct connection attempt:
+Cannot connect - incompatible socket!
+
+Using power adapter:
+
+[Power Adapter translating...]
+American plug connected: 110V, Type A (flat blades)
+Converting to European standard: 220V, Type C (round pins)
+Device successfully powered: 220V AC Power (adapted from 110V)
+
+============================================================
+KEY BENEFITS DEMONSTRATED
+============================================================
+1. Incompatible interfaces work together seamlessly
+2. No modification to existing (legacy) code required
+3. Client uses consistent interface regardless of adaptee
+4. Easy to add support for new formats/devices
+5. Separation of concerns - adapter handles translation
+
+*/
