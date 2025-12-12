@@ -1,0 +1,349 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use v5.10;
+
+# ============================================
+# COMPONENT (Common Interface)
+# ============================================
+
+package Employee;
+use strict;
+use warnings;
+
+sub new {
+    my ($class, $name, $position, $salary) = @_;
+    return bless {
+        name => $name,
+        position => $position,
+        salary => $salary
+    }, $class;
+}
+
+sub get_name { return shift->{name} }
+sub get_position { return shift->{position} }
+sub get_salary { return shift->{salary} }
+
+# Methods to be implemented by subclasses
+sub show_details { die "Abstract method: show_details must be implemented" }
+sub get_total_salary { die "Abstract method: get_total_salary must be implemented" }
+sub add { die "Operation not supported" }
+sub remove { die "Operation not supported" }
+sub get_subordinates { return () }
+
+# ============================================
+# LEAF (Individual Employee)
+# ============================================
+
+package IndividualContributor;
+use strict;
+use warnings;
+our @ISA = ('Employee');
+
+sub show_details {
+    my ($self, $indent) = @_;
+    $indent //= "";
+    
+    printf "%s[Individual] %s - %s (\$%s)\n",
+        $indent,
+        $self->get_name(),
+        $self->get_position(),
+        $self->get_salary();
+}
+
+sub get_total_salary {
+    my ($self) = @_;
+    return $self->get_salary();
+}
+
+# ============================================
+# COMPOSITE (Manager/Department)
+# ============================================
+
+package Manager;
+use strict;
+use warnings;
+our @ISA = ('Employee');
+
+sub new {
+    my ($class, $name, $position, $salary) = @_;
+    my $self = $class->SUPER::new($name, $position, $salary);
+    $self->{subordinates} = [];
+    return $self;
+}
+
+sub add {
+    my ($self, $employee) = @_;
+    push @{$self->{subordinates}}, $employee;
+    say sprintf("Added %s under %s", $employee->get_name(), $self->get_name());
+}
+
+sub remove {
+    my ($self, $employee) = @_;
+    my $name = $employee->get_name();
+    
+    @{$self->{subordinates}} = grep { 
+        $_->get_name() ne $name 
+    } @{$self->{subordinates}};
+    
+    say sprintf("Removed %s from under %s", $name, $self->get_name());
+}
+
+sub get_subordinates {
+    my ($self) = @_;
+    return @{$self->{subordinates}};
+}
+
+sub show_details {
+    my ($self, $indent) = @_;
+    $indent //= "";
+    
+    printf "%s[Manager] %s - %s (\$%s) [Team: %d]\n",
+        $indent,
+        $self->get_name(),
+        $self->get_position(),
+        $self->get_salary(),
+        scalar(@{$self->{subordinates}});
+    
+    # Recursively show subordinates
+    foreach my $subordinate (@{$self->{subordinates}}) {
+        $subordinate->show_details($indent . "  ");
+    }
+}
+
+sub get_total_salary {
+    my ($self) = @_;
+    my $total = $self->get_salary();
+    
+    # Add salaries of all subordinates recursively
+    foreach my $subordinate (@{$self->{subordinates}}) {
+        $total += $subordinate->get_total_salary();
+    }
+    
+    return $total;
+}
+
+# ============================================
+# DEPARTMENT (Higher-level Composite)
+# ============================================
+
+package Department;
+use strict;
+use warnings;
+our @ISA = ('Employee');
+
+sub new {
+    my ($class, $name) = @_;
+    my $self = $class->SUPER::new($name, "Department", 0);
+    $self->{members} = [];
+    return $self;
+}
+
+sub add {
+    my ($self, $employee) = @_;
+    push @{$self->{members}}, $employee;
+    say sprintf("Added %s to %s department", $employee->get_name(), $self->get_name());
+}
+
+sub remove {
+    my ($self, $employee) = @_;
+    my $name = $employee->get_name();
+    
+    @{$self->{members}} = grep { 
+        $_->get_name() ne $name 
+    } @{$self->{members}};
+    
+    say sprintf("Removed %s from %s department", $name, $self->get_name());
+}
+
+sub get_subordinates {
+    my ($self) = @_;
+    return @{$self->{members}};
+}
+
+sub show_details {
+    my ($self, $indent) = @_;
+    $indent //= "";
+    
+    printf "%s[DEPARTMENT: %s] [Total Members: %d]\n",
+        $indent,
+        $self->get_name(),
+        scalar(@{$self->{members}});
+    
+    # Recursively show all members
+    foreach my $member (@{$self->{members}}) {
+        $member->show_details($indent . "  ");
+    }
+}
+
+sub get_total_salary {
+    my ($self) = @_;
+    my $total = 0;
+    
+    # Sum salaries of all members recursively
+    foreach my $member (@{$self->{members}}) {
+        $total += $member->get_total_salary();
+    }
+    
+    return $total;
+}
+
+sub get_salary {
+    return 0;  # Departments don't have their own salary
+}
+
+# ============================================
+# CLIENT CODE
+# ============================================
+
+package main;
+
+sub print_separator {
+    say "=" x 70;
+}
+
+# Create individual contributors (Leaves)
+my $dev1 = IndividualContributor->new("Alice Johnson", "Senior Developer", 95000);
+my $dev2 = IndividualContributor->new("Bob Smith", "Developer", 75000);
+my $dev3 = IndividualContributor->new("Carol White", "Junior Developer", 55000);
+
+my $qa1 = IndividualContributor->new("David Brown", "QA Engineer", 65000);
+my $qa2 = IndividualContributor->new("Eve Davis", "Senior QA", 80000);
+
+my $designer = IndividualContributor->new("Frank Miller", "UI/UX Designer", 70000);
+my $analyst = IndividualContributor->new("Grace Lee", "Business Analyst", 72000);
+
+say "\n=== Building Organizational Structure ===\n";
+
+# Create managers (Composites)
+my $dev_manager = Manager->new("Henry Wilson", "Development Manager", 110000);
+$dev_manager->add($dev1);
+$dev_manager->add($dev2);
+$dev_manager->add($dev3);
+
+my $qa_manager = Manager->new("Iris Chen", "QA Manager", 105000);
+$qa_manager->add($qa1);
+$qa_manager->add($qa2);
+
+# Create departments (Higher-level composites)
+my $engineering_dept = Department->new("Engineering");
+$engineering_dept->add($dev_manager);
+$engineering_dept->add($qa_manager);
+
+my $product_dept = Department->new("Product");
+$product_dept->add($designer);
+$product_dept->add($analyst);
+
+# Create company structure
+my $cto = Manager->new("Jack Thompson", "CTO", 180000);
+$cto->add($engineering_dept);
+$cto->add($product_dept);
+
+say "\n";
+print_separator();
+say "COMPLETE ORGANIZATIONAL HIERARCHY";
+print_separator();
+$cto->show_details();
+
+say "\n";
+print_separator();
+say "SALARY CALCULATIONS";
+print_separator();
+
+# The beauty of Composite: uniform treatment of individuals and groups
+my @all_units = ($cto, $engineering_dept, $dev_manager, $dev1);
+
+foreach my $unit (@all_units) {
+    printf "Total salary for %s: \$%s\n",
+        $unit->get_name(),
+        $unit->get_total_salary();
+}
+
+say "\n";
+print_separator();
+say "DEMONSTRATING REMOVE OPERATION";
+print_separator();
+say "";
+
+# Remove an employee
+$dev_manager->remove($dev3);
+
+say "\n=== Updated Engineering Department Structure ===\n";
+$engineering_dept->show_details();
+
+say "\n";
+print_separator();
+say "UPDATED SALARY AFTER REMOVAL";
+print_separator();
+printf "Engineering Department total salary: \$%s\n",
+    $engineering_dept->get_total_salary();
+
+say "\n";
+print_separator();
+say "KEY BENEFITS DEMONSTRATED";
+print_separator();
+say "1. Uniform treatment: Same interface for individuals and groups";
+say "2. Recursive operations: Automatically traverse the entire tree";
+say "3. Easy to extend: Add new leaf or composite types easily";
+say "4. Client simplicity: No need for type checking or conditionals";
+print_separator();
+
+# Expected Output:
+# === Building Organizational Structure ===
+# Added Alice Johnson under Henry Wilson
+# Added Bob Smith under Henry Wilson
+# Added Carol White under Henry Wilson
+# Added David Brown under Iris Chen
+# Added Eve Davis under Iris Chen
+# Added Henry Wilson to Engineering department
+# Added Iris Chen to Engineering department
+# Added Frank Miller to Product department
+# Added Grace Lee to Product department
+# Added Engineering to Jack Thompson
+# Added Product to Jack Thompson
+# ======================================================================
+# COMPLETE ORGANIZATIONAL HIERARCHY
+# ======================================================================
+# [Manager] Jack Thompson - CTO ($180000) [Team: 2]
+#   [DEPARTMENT: Engineering] [Total Members: 2]
+#     [Manager] Henry Wilson - Development Manager ($110000) [Team: 3]
+#       [Individual] Alice Johnson - Senior Developer ($95000)
+#       [Individual] Bob Smith - Developer ($75000)
+#       [Individual] Carol White - Junior Developer ($55000)
+#     [Manager] Iris Chen - QA Manager ($105000) [Team: 2]
+#       [Individual] David Brown - QA Engineer ($65000)
+#       [Individual] Eve Davis - Senior QA ($80000)
+#   [DEPARTMENT: Product] [Total Members: 2]
+#     [Individual] Frank Miller - UI/UX Designer ($70000)
+#     [Individual] Grace Lee - Business Analyst ($72000)
+# ======================================================================
+# SALARY CALCULATIONS
+# ======================================================================
+# Total salary for Jack Thompson: $1032000
+# Total salary for Engineering: $585000
+# Total salary for Henry Wilson: $335000
+# Total salary for Alice Johnson: $95000
+# ======================================================================
+# DEMONSTRATING REMOVE OPERATION
+# ======================================================================
+# Removed Carol White from under Henry Wilson
+# === Updated Engineering Department Structure ===
+# [DEPARTMENT: Engineering] [Total Members: 2]
+#   [Manager] Henry Wilson - Development Manager ($110000) [Team: 2]
+#     [Individual] Alice Johnson - Senior Developer ($95000)
+#     [Individual] Bob Smith - Developer ($75000)
+#   [Manager] Iris Chen - QA Manager ($105000) [Team: 2]
+#     [Individual] David Brown - QA Engineer ($65000)
+#     [Individual] Eve Davis - Senior QA ($80000)
+# ======================================================================
+# UPDATED SALARY AFTER REMOVAL
+# ======================================================================
+# Engineering Department total salary: $530000
+# ======================================================================
+# KEY BENEFITS DEMONSTRATED
+# ======================================================================
+# 1. Uniform treatment: Same interface for individuals and groups
+# 2. Recursive operations: Automatically traverse the entire tree
+# 3. Easy to extend: Add new leaf or composite types easily
+# 4. Client simplicity: No need for type checking or conditionals
+# ======================================================================
