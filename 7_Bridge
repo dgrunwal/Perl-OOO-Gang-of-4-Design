@@ -1,0 +1,237 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use v5.10;
+
+# ============================================
+# IMPLEMENTATION HIERARCHY (Low-level operations)
+# ============================================
+
+# Implementation Interface
+package Device;
+sub new {
+    my ($class) = @_;
+    return bless {}, $class;
+}
+sub is_enabled { die "Abstract method" }
+sub enable { die "Abstract method" }
+sub disable { die "Abstract method" }
+sub get_volume { die "Abstract method" }
+sub set_volume { die "Abstract method" }
+sub get_channel { die "Abstract method" }
+sub set_channel { die "Abstract method" }
+
+# Concrete Implementation: Samsung TV
+package SamsungTV;
+use strict;
+use warnings;
+our @ISA = ('Device');
+
+sub new {
+    my ($class) = @_;
+    my $self = $class->SUPER::new();
+    $self->{enabled} = 0;
+    $self->{volume} = 30;
+    $self->{channel} = 1;
+    return $self;
+}
+
+sub is_enabled { return shift->{enabled} }
+
+sub enable {
+    my ($self) = @_;
+    $self->{enabled} = 1;
+    say "Samsung TV: Powered ON";
+}
+
+sub disable {
+    my ($self) = @_;
+    $self->{enabled} = 0;
+    say "Samsung TV: Powered OFF";
+}
+
+sub get_volume { return shift->{volume} }
+
+sub set_volume {
+    my ($self, $volume) = @_;
+    $self->{volume} = $volume;
+    say "Samsung TV: Volume set to $volume";
+}
+
+sub get_channel { return shift->{channel} }
+
+sub set_channel {
+    my ($self, $channel) = @_;
+    $self->{channel} = $channel;
+    say "Samsung TV: Channel changed to $channel";
+}
+
+# Concrete Implementation: Sony TV
+package SonyTV;
+use strict;
+use warnings;
+our @ISA = ('Device');
+
+sub new {
+    my ($class) = @_;
+    my $self = $class->SUPER::new();
+    $self->{on} = 0;
+    $self->{volume_level} = 25;
+    $self->{current_channel} = 1;
+    return $self;
+}
+
+sub is_enabled { return shift->{on} }
+
+sub enable {
+    my ($self) = @_;
+    $self->{on} = 1;
+    say "Sony TV: Turning on with style...";
+}
+
+sub disable {
+    my ($self) = @_;
+    $self->{on} = 0;
+    say "Sony TV: Shutting down gracefully...";
+}
+
+sub get_volume { return shift->{volume_level} }
+
+sub set_volume {
+    my ($self, $volume) = @_;
+    $self->{volume_level} = $volume;
+    say "Sony TV: Audio level adjusted to $volume";
+}
+
+sub get_channel { return shift->{current_channel} }
+
+sub set_channel {
+    my ($self, $channel) = @_;
+    $self->{current_channel} = $channel;
+    say "Sony TV: Tuned to channel $channel";
+}
+
+# ============================================
+# ABSTRACTION HIERARCHY (High-level control)
+# ============================================
+
+# Abstraction: Remote Control
+package RemoteControl;
+use strict;
+use warnings;
+
+sub new {
+    my ($class, $device) = @_;
+    return bless { device => $device }, $class;
+}
+
+sub toggle_power {
+    my ($self) = @_;
+    if ($self->{device}->is_enabled()) {
+        $self->{device}->disable();
+    } else {
+        $self->{device}->enable();
+    }
+}
+
+sub volume_up {
+    my ($self) = @_;
+    my $current = $self->{device}->get_volume();
+    $self->{device}->set_volume($current + 10);
+}
+
+sub volume_down {
+    my ($self) = @_;
+    my $current = $self->{device}->get_volume();
+    $self->{device}->set_volume($current - 10);
+}
+
+sub channel_up {
+    my ($self) = @_;
+    my $current = $self->{device}->get_channel();
+    $self->{device}->set_channel($current + 1);
+}
+
+sub channel_down {
+    my ($self) = @_;
+    my $current = $self->{device}->get_channel();
+    $self->{device}->set_channel($current - 1);
+}
+
+# Refined Abstraction: Advanced Remote
+package AdvancedRemote;
+use strict;
+use warnings;
+our @ISA = ('RemoteControl');
+
+sub mute {
+    my ($self) = @_;
+    say "Advanced Remote: Muting device";
+    $self->{device}->set_volume(0);
+}
+
+sub jump_to_channel {
+    my ($self, $channel) = @_;
+    say "Advanced Remote: Quick jump to channel $channel";
+    $self->{device}->set_channel($channel);
+}
+
+# ============================================
+# CLIENT CODE
+# ============================================
+
+package main;
+
+sub test_device {
+    my ($remote) = @_;
+    
+    $remote->toggle_power();
+    $remote->volume_up();
+    $remote->channel_up();
+    $remote->channel_up();
+    say "";
+}
+
+say "=== Testing Basic Remote with Samsung TV ===";
+my $samsung = SamsungTV->new();
+my $basic_remote = RemoteControl->new($samsung);
+test_device($basic_remote);
+
+say "=== Testing Advanced Remote with Sony TV ===";
+my $sony = SonyTV->new();
+my $advanced_remote = AdvancedRemote->new($sony);
+test_device($advanced_remote);
+$advanced_remote->mute();
+$advanced_remote->jump_to_channel(99);
+say "";
+
+say "=== Switching Device on Same Remote ===";
+my $new_remote = AdvancedRemote->new($samsung);
+$new_remote->toggle_power();
+$new_remote->jump_to_channel(42);
+$new_remote->volume_down();
+
+
+
+# Expected Output:
+# === Testing Basic Remote with Samsung TV ===
+# Samsung TV: Powered ON
+# Samsung TV: Volume set to 40
+# Samsung TV: Channel changed to 2
+# Samsung TV: Channel changed to 3
+# 
+# === Testing Advanced Remote with Sony TV ===
+# Sony TV: Turning on with style...
+# Sony TV: Audio level adjusted to 35
+# Sony TV: Tuned to channel 2
+# Sony TV: Tuned to channel 3
+# Advanced Remote: Muting device
+# Sony TV: Audio level adjusted to 0
+# Advanced Remote: Quick jump to channel 99
+# Sony TV: Tuned to channel 99
+# 
+# === Switching Device on Same Remote ===
+# Samsung TV: Powered OFF
+# Advanced Remote: Quick jump to channel 42
+# Samsung TV: Channel changed to 42
+
