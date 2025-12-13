@@ -1,0 +1,373 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use v5.10;
+use Time::HiRes qw(time);
+
+# ============================================
+# TIMING DECORATOR UTILITY
+# ============================================
+
+package TimingDecorator;
+use strict;
+use warnings;
+
+# Create a timing decorator that wraps any subroutine
+sub new {
+    my ($class, $code_ref, $name) = @_;
+    
+    return bless {
+        original => $code_ref,
+        name => $name,
+        log_file => undef,
+        enabled => 1
+    }, $class;
+}
+
+# Set log file for writing timing information
+sub set_log_file {
+    my ($self, $filename) = @_;
+    $self->{log_file} = $filename;
+}
+
+# Enable/disable timing
+sub set_enabled {
+    my ($self, $enabled) = @_;
+    $self->{enabled} = $enabled;
+}
+
+# Execute the wrapped function with timing
+sub execute {
+    my ($self, @args) = @_;
+    
+    unless ($self->{enabled}) {
+        return $self->{original}->(@args);
+    }
+    
+    my $start_time = Time::HiRes::time();
+    
+    # Execute the original function
+    my @result;
+    my $wantarray = wantarray;
+    
+    if ($wantarray) {
+        @result = $self->{original}->(@args);
+    } elsif (defined $wantarray) {
+        $result[0] = $self->{original}->(@args);
+    } else {
+        $self->{original}->(@args);
+    }
+    
+    my $end_time = Time::HiRes::time();
+    my $elapsed = $end_time - $start_time;
+    
+    # Log the timing information
+    $self->log_timing($elapsed, scalar(@args));
+    
+    return $wantarray ? @result : $result[0];
+}
+
+sub log_timing {
+    my ($self, $elapsed, $arg_count) = @_;
+    
+    my $timestamp = localtime();
+    my $message = sprintf(
+        "[%s] Function: %s | Duration: %.6f seconds | Args: %d\n",
+        $timestamp,
+        $self->{name},
+        $elapsed,
+        $arg_count
+    );
+    
+    # Print to console
+    print $message;
+    
+    # Write to log file if specified
+    if ($self->{log_file}) {
+        open(my $fh, '>>', $self->{log_file}) or warn "Cannot open log file: $!";
+        # Ensure we use autoflush for immediate writing
+        my $old_fh = select($fh);
+        $| = 1;
+        select($old_fh);
+        print $fh $message;
+        close($fh);
+    }
+}
+
+# ============================================
+# EASY-TO-USE TIMING WRAPPER FUNCTION
+# ============================================
+
+package main;
+
+# Global storage for decorated functions
+my %decorated_functions;
+
+# Decorator function - wraps a subroutine with timing
+sub timed {
+    my ($name, $code_ref, $log_file) = @_;
+    
+    my $decorator = TimingDecorator->new($code_ref, $name);
+    $decorator->set_log_file($log_file) if $log_file;
+    
+    # Store the decorator
+    $decorated_functions{$name} = $decorator;
+    
+    # Return a wrapped version
+    return sub {
+        $decorator->execute(@_);
+    };
+}
+
+# Alternative: Attribute-style decorator
+sub timing_attr {
+    my ($func_name, $code_ref) = @_;
+    
+    no strict 'refs';
+    no warnings 'redefine';
+    
+    my $decorator = TimingDecorator->new($code_ref, $func_name);
+    $decorated_functions{$func_name} = $decorator;
+    
+    # Replace the function in the symbol table
+    *{$func_name} = sub {
+        $decorator->execute(@_);
+    };
+}
+
+# ============================================
+# EXAMPLE FUNCTIONS TO TIME
+# ============================================
+
+# Function 1: Database query simulation
+sub fetch_user_data {
+    my ($user_id) = @_;
+    say "  -> Fetching data for user $user_id...";
+    
+    # Simulate database query
+    select(undef, undef, undef, 0.15);  # Sleep for 0.15 seconds
+    
+    return {
+        id => $user_id,
+        name => "User_$user_id",
+        email => "user${user_id}\@example.com"
+    };
+}
+
+# Function 2: Heavy computation simulation
+sub calculate_fibonacci {
+    my ($n) = @_;
+    say "  -> Calculating Fibonacci($n)...";
+    
+    return $n if $n <= 1;
+    
+    my ($a, $b) = (0, 1);
+    for (2..$n) {
+        ($a, $b) = ($b, $a + $b);
+    }
+    
+    # Simulate additional processing time
+    select(undef, undef, undef, 0.05);
+    
+    return $b;
+}
+
+# Function 3: Data processing pipeline
+sub process_data_batch {
+    my ($batch_size) = @_;
+    say "  -> Processing batch of $batch_size items...";
+    
+    my $processed = 0;
+    for (1..$batch_size) {
+        # Simulate processing each item
+        $processed++;
+        select(undef, undef, undef, 0.01) if $_ % 5 == 0;
+    }
+    
+    return $processed;
+}
+
+# ============================================
+# DEMONSTRATION
+# ============================================
+
+say "=" x 70;
+say "DECORATOR PATTERN - TIMING ANALYSIS IN PERL";
+say "=" x 70;
+
+# Method 1: Wrap functions using timed()
+say "\n=== Method 1: Explicit Wrapping ===\n";
+
+my $timed_fetch = timed('fetch_user_data', \&fetch_user_data, 'timing.log');
+my $timed_calc = timed('calculate_fibonacci', \&calculate_fibonacci, 'timing.log');
+
+say "Calling timed_fetch(12345):";
+$timed_fetch->(12345);
+
+say "\nCalling timed_calc(30):";
+my $result = $timed_calc->(30);
+say "  Result: $result";
+
+# Method 2: Using attribute-style decorator
+say "\n\n=== Method 2: Attribute-Style Decoration ===\n";
+
+timing_attr('process_data_batch', \&process_data_batch);
+
+say "Calling decorated process_data_batch(10):";
+my $processed = process_data_batch(10);
+say "  Processed: $processed items";
+
+# Method 3: Multiple decorations
+say "\n\n=== Method 3: Chained/Multiple Timings ===\n";
+
+say "Running multiple operations:";
+for my $i (1..3) {
+    say "\n--- Iteration $i ---";
+    $timed_fetch->(1000 + $i);
+    $timed_calc->(20 + $i * 5);
+    process_data_batch(5 + $i * 2);
+}
+
+# ============================================
+# ADVANCED: DECORATOR WITH ADDITIONAL FEATURES
+# ============================================
+
+say "\n\n=== Advanced: Decorator with Statistics ===\n";
+
+package StatisticsDecorator;
+use strict;
+use warnings;
+our @ISA = ('TimingDecorator');
+
+sub new {
+    my ($class, $code_ref, $name) = @_;
+    my $self = $class->SUPER::new($code_ref, $name);
+    $self->{call_count} = 0;
+    $self->{total_time} = 0;
+    $self->{min_time} = undef;
+    $self->{max_time} = undef;
+    return $self;
+}
+
+sub execute {
+    my ($self, @args) = @_;
+    
+    my $start_time = Time::HiRes::time();
+    
+    # Execute original function
+    my @result;
+    my $wantarray = wantarray;
+    
+    if ($wantarray) {
+        @result = $self->{original}->(@args);
+    } elsif (defined $wantarray) {
+        $result[0] = $self->{original}->(@args);
+    } else {
+        $self->{original}->(@args);
+    }
+    
+    my $elapsed = Time::HiRes::time() - $start_time;
+    
+    # Update statistics
+    $self->{call_count}++;
+    $self->{total_time} += $elapsed;
+    $self->{min_time} = $elapsed if !defined($self->{min_time}) || $elapsed < $self->{min_time};
+    $self->{max_time} = $elapsed if !defined($self->{max_time}) || $elapsed > $self->{max_time};
+    
+    printf "[STATS] %s: %.6fs (Calls: %d, Avg: %.6fs, Min: %.6fs, Max: %.6fs)\n",
+        $self->{name},
+        $elapsed,
+        $self->{call_count},
+        $self->{total_time} / $self->{call_count},
+        $self->{min_time},
+        $self->{max_time};
+    
+    return $wantarray ? @result : $result[0];
+}
+
+package main;
+
+# Create statistics decorator
+my $stats_decorator = StatisticsDecorator->new(\&calculate_fibonacci, 'fib_stats');
+my $stats_fib = sub { $stats_decorator->execute(@_) };
+
+say "Running Fibonacci with statistics:";
+for my $n (10, 15, 20, 25, 30) {
+    $stats_fib->($n);
+}
+
+# ============================================
+# COMPARISON TABLE
+# ============================================
+
+say "\n\n";
+say "=" x 70;
+say "TIMING SUMMARY";
+say "=" x 70;
+say "Log file 'timing.log' has been created with detailed timing information.";
+say "\nKey Benefits of Decorator Pattern:";
+say "  1. Add timing without modifying original functions";
+say "  2. Can be applied/removed dynamically at runtime";
+say "  3. Stack multiple decorators (timing + logging + caching)";
+say "  4. Maintain original function signature and behavior";
+say "  5. Easy to enable/disable for production vs development";
+say "=" x 70;
+
+# Expected Output:
+# ======================================================================
+# DECORATOR PATTERN - TIMING ANALYSIS IN PERL
+# ======================================================================
+# 
+# === Method 1: Explicit Wrapping ===
+# 
+# Calling timed_fetch(12345):
+#   -> Fetching data for user 12345...
+# [timestamp] Function: fetch_user_data | Duration: 0.150xxx seconds | Args: 1
+# 
+# Calling timed_calc(30):
+#   -> Calculating Fibonacci(30)...
+# [timestamp] Function: calculate_fibonacci | Duration: 0.050xxx seconds | Args: 1
+#   Result: 832040
+# 
+# === Method 2: Attribute-Style Decoration ===
+# 
+# Calling decorated process_data_batch(10):
+#   -> Processing batch of 10 items...
+# [timestamp] Function: process_data_batch | Duration: 0.020xxx seconds | Args: 1
+#   Processed: 10 items
+# 
+# === Method 3: Chained/Multiple Timings ===
+# 
+# Running multiple operations:
+# 
+# --- Iteration 1 ---
+#   -> Fetching data for user 1001...
+# [timestamp] Function: fetch_user_data | Duration: 0.150xxx seconds | Args: 1
+#   -> Calculating Fibonacci(25)...
+# [timestamp] Function: calculate_fibonacci | Duration: 0.050xxx seconds | Args: 1
+#   -> Processing batch of 7 items...
+# [timestamp] Function: process_data_batch | Duration: 0.010xxx seconds | Args: 1
+# [continues for iterations 2-3...]
+# 
+# === Advanced: Decorator with Statistics ===
+# 
+# Running Fibonacci with statistics:
+#   -> Calculating Fibonacci(10)...
+# [STATS] fib_stats: 0.050xxx (Calls: 1, Avg: 0.050xxx, Min: 0.050xxx, Max: 0.050xxx)
+#   -> Calculating Fibonacci(15)...
+# [STATS] fib_stats: 0.050xxx (Calls: 2, Avg: 0.050xxx, Min: 0.050xxx, Max: 0.050xxx)
+# [continues for remaining values...]
+# 
+# ======================================================================
+# TIMING SUMMARY
+# ======================================================================
+# Log file 'timing.log' has been created with detailed timing information by using
+# Time::HiRes::time() returns fractional seconds with microsecond precision
+# 
+#   Key Benefits of Decorator Pattern:
+#   1. Add timing without modifying original functions
+#   2. Can be applied/removed dynamically at runtime
+#   3. Stack multiple decorators (timing + logging + caching)
+#   4. Maintain original function signature and behavior
+#   5. Easy to enable/disable for production vs development
+# ======================================================================
