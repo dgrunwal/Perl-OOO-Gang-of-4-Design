@@ -1,0 +1,559 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use v5.10;
+
+#Four Types of Proxies Demonstrated:
+#
+#Virtual Proxy - Lazy loading of expensive resources
+#
+#Document isn't loaded until first access
+#Saves memory and initialization time
+#
+#
+#Protection Proxy - Access control and authorization
+#
+#Admin vs regular user permissions
+#Logs all access attempts
+#Prevents unauthorized operations
+#
+#
+#Logging Proxy - Transparent request logging
+#
+#Tracks method calls and execution time
+#Maintains statistics
+#No impact on real object
+#
+#
+#Caching Proxy - Performance optimization
+#
+#Caches expensive operations
+#Tracks cache hits/misses
+#Reduces redundant work
+
+# ============================================
+# SUBJECT INTERFACE (Common Interface)
+# ============================================
+
+package DocumentInterface;
+our @ISA = ();
+
+sub new {
+    my $class = shift;
+    return bless {}, $class;
+}
+
+sub display {
+    my $self = shift;
+    die "Must implement display() method";
+}
+
+sub get_content {
+    my $self = shift;
+    die "Must implement get_content() method";
+}
+
+# ============================================
+# REAL SUBJECT (Expensive Object)
+# ============================================
+
+package RealDocument;
+our @ISA = qw(DocumentInterface);
+
+sub new {
+    my ($class, $filename) = @_;
+    my $self = $class->SUPER::new();
+    $self->{filename} = $filename;
+    $self->{content} = undef;
+    
+    # Simulate expensive loading operation
+    say "RealDocument: Loading '$filename' from disk (expensive operation)...";
+    sleep(1);  # Simulate disk I/O delay
+    $self->{content} = "Content of $filename: Lorem ipsum dolor sit amet...";
+    say "RealDocument: '$filename' loaded successfully!";
+    
+    return bless $self, $class;
+}
+
+sub display {
+    my $self = shift;
+    say "RealDocument: Displaying content...";
+    say "  " . $self->{content};
+}
+
+sub get_content {
+    my $self = shift;
+    return $self->{content};
+}
+
+sub get_filename {
+    my $self = shift;
+    return $self->{filename};
+}
+
+# ============================================
+# VIRTUAL PROXY (Lazy Loading)
+# ============================================
+
+package VirtualDocumentProxy;
+our @ISA = qw(DocumentInterface);
+
+sub new {
+    my ($class, $filename) = @_;
+    my $self = $class->SUPER::new();
+    $self->{filename} = $filename;
+    $self->{real_document} = undef;  # Not loaded yet
+    
+    say "VirtualProxy: Created proxy for '$filename' (not loaded yet)";
+    
+    return bless $self, $class;
+}
+
+sub _load_real_document {
+    my $self = shift;
+    
+    if (!defined $self->{real_document}) {
+        say "VirtualProxy: First access - loading real document now...";
+        $self->{real_document} = RealDocument->new($self->{filename});
+    }
+    
+    return $self->{real_document};
+}
+
+sub display {
+    my $self = shift;
+    say "VirtualProxy: Delegating display request...";
+    my $doc = $self->_load_real_document();
+    $doc->display();
+}
+
+sub get_content {
+    my $self = shift;
+    my $doc = $self->_load_real_document();
+    return $doc->get_content();
+}
+
+# ============================================
+# PROTECTION PROXY (Access Control)
+# ============================================
+
+package ProtectionDocumentProxy;
+our @ISA = qw(DocumentInterface);
+
+sub new {
+    my ($class, $real_doc, $user_role) = @_;
+    my $self = $class->SUPER::new();
+    $self->{real_document} = $real_doc;
+    $self->{user_role} = $user_role;
+    $self->{access_log} = [];
+    
+    say "ProtectionProxy: Created with role '$user_role'";
+    
+    return bless $self, $class;
+}
+
+sub _check_access {
+    my ($self, $operation) = @_;
+    
+    my $timestamp = localtime();
+    my $log_entry = "[$timestamp] User ($self->{user_role}) attempted: $operation";
+    push @{$self->{access_log}}, $log_entry;
+    
+    # Admin has full access, User has read-only
+    if ($operation eq 'display' || $operation eq 'get_content') {
+        say "ProtectionProxy: Access GRANTED for $operation";
+        return 1;
+    }
+    
+    if ($self->{user_role} eq 'admin') {
+        say "ProtectionProxy: Access GRANTED for $operation (admin)";
+        return 1;
+    }
+    
+    say "ProtectionProxy: Access DENIED for $operation (insufficient privileges)";
+    return 0;
+}
+
+sub display {
+    my $self = shift;
+    
+    if ($self->_check_access('display')) {
+        $self->{real_document}->display();
+    } else {
+        say "ProtectionProxy: Cannot display - access denied";
+    }
+}
+
+sub get_content {
+    my $self = shift;
+    
+    if ($self->_check_access('get_content')) {
+        return $self->{real_document}->get_content();
+    }
+    
+    return undef;
+}
+
+sub modify_content {
+    my ($self, $new_content) = @_;
+    
+    if ($self->_check_access('modify_content')) {
+        say "ProtectionProxy: Modifying content...";
+        # Would modify real document here
+        return 1;
+    }
+    
+    return 0;
+}
+
+sub get_access_log {
+    my $self = shift;
+    return @{$self->{access_log}};
+}
+
+# ============================================
+# LOGGING PROXY (Request Logging)
+# ============================================
+
+package LoggingDocumentProxy;
+our @ISA = qw(DocumentInterface);
+
+sub new {
+    my ($class, $real_doc) = @_;
+    my $self = $class->SUPER::new();
+    $self->{real_document} = $real_doc;
+    $self->{call_count} = 0;
+    
+    say "LoggingProxy: Created";
+    
+    return bless $self, $class;
+}
+
+sub display {
+    my $self = shift;
+    
+    $self->{call_count}++;
+    my $timestamp = localtime();
+    say "LoggingProxy: [$timestamp] display() called (call #$self->{call_count})";
+    
+    my $start_time = time();
+    $self->{real_document}->display();
+    my $duration = time() - $start_time;
+    
+    say "LoggingProxy: display() completed in ${duration}s";
+}
+
+sub get_content {
+    my $self = shift;
+    
+    $self->{call_count}++;
+    say "LoggingProxy: get_content() called (call #$self->{call_count})";
+    
+    return $self->{real_document}->get_content();
+}
+
+sub get_statistics {
+    my $self = shift;
+    return "Total method calls: $self->{call_count}";
+}
+
+# ============================================
+# CACHING PROXY (Performance Optimization)
+# ============================================
+
+package CachingDocumentProxy;
+our @ISA = qw(DocumentInterface);
+
+sub new {
+    my ($class, $real_doc) = @_;
+    my $self = $class->SUPER::new();
+    $self->{real_document} = $real_doc;
+    $self->{cache} = {};
+    $self->{cache_hits} = 0;
+    $self->{cache_misses} = 0;
+    
+    say "CachingProxy: Created with empty cache";
+    
+    return bless $self, $class;
+}
+
+sub display {
+    my $self = shift;
+    $self->{real_document}->display();
+}
+
+sub get_content {
+    my $self = shift;
+    
+    if (exists $self->{cache}->{content}) {
+        $self->{cache_hits}++;
+        say "CachingProxy: Cache HIT! Returning cached content";
+        return $self->{cache}->{content};
+    }
+    
+    $self->{cache_misses}++;
+    say "CachingProxy: Cache MISS - fetching from real document";
+    my $content = $self->{real_document}->get_content();
+    $self->{cache}->{content} = $content;
+    
+    return $content;
+}
+
+sub clear_cache {
+    my $self = shift;
+    say "CachingProxy: Clearing cache";
+    $self->{cache} = {};
+}
+
+sub get_cache_stats {
+    my $self = shift;
+    return "Cache hits: $self->{cache_hits}, misses: $self->{cache_misses}";
+}
+
+# ============================================
+# CLIENT CODE - DEMONSTRATIONS
+# ============================================
+
+package main;
+
+sub print_separator {
+    my $title = shift;
+    say "\n" . "=" x 70;
+    say "  $title";
+    say "=" x 70 . "\n";
+}
+
+print_separator("PROXY PATTERN DEMONSTRATION");
+
+# ============================================
+# 1. VIRTUAL PROXY (Lazy Loading)
+# ============================================
+
+print_separator("1. VIRTUAL PROXY - Lazy Loading");
+
+say "Creating proxy (document NOT loaded yet)...";
+my $virtual_proxy = VirtualDocumentProxy->new("large_report.pdf");
+
+say "\nDoing other work...";
+say "...working...";
+say "...still working...";
+
+say "\nNow accessing document for first time:";
+$virtual_proxy->display();
+
+say "\nAccessing again (already loaded):";
+$virtual_proxy->display();
+
+# ============================================
+# 2. PROTECTION PROXY (Access Control)
+# ============================================
+
+print_separator("2. PROTECTION PROXY - Access Control");
+
+say "--- Testing with ADMIN user ---";
+my $real_doc1 = RealDocument->new("confidential_data.txt");
+my $admin_proxy = ProtectionDocumentProxy->new($real_doc1, 'admin');
+
+$admin_proxy->display();
+$admin_proxy->modify_content("new content");
+
+say "\n--- Testing with REGULAR user ---";
+my $real_doc2 = RealDocument->new("public_data.txt");
+my $user_proxy = ProtectionDocumentProxy->new($real_doc2, 'user');
+
+$user_proxy->display();
+$user_proxy->modify_content("trying to change");
+
+say "\n--- Access Log ---";
+foreach my $entry ($user_proxy->get_access_log()) {
+    say $entry;
+}
+
+# ============================================
+# 3. LOGGING PROXY (Request Tracking)
+# ============================================
+
+print_separator("3. LOGGING PROXY - Request Tracking");
+
+my $real_doc3 = RealDocument->new("system_log.txt");
+my $logging_proxy = LoggingDocumentProxy->new($real_doc3);
+
+$logging_proxy->display();
+say "";
+$logging_proxy->get_content();
+say "";
+$logging_proxy->display();
+
+say "\n" . $logging_proxy->get_statistics();
+
+# ============================================
+# 4. CACHING PROXY (Performance)
+# ============================================
+
+print_separator("4. CACHING PROXY - Performance Optimization");
+
+my $real_doc4 = RealDocument->new("database_query.sql");
+my $caching_proxy = CachingDocumentProxy->new($real_doc4);
+
+say "First call (will cache):";
+my $content1 = $caching_proxy->get_content();
+
+say "\nSecond call (from cache):";
+my $content2 = $caching_proxy->get_content();
+
+say "\nThird call (from cache):";
+my $content3 = $caching_proxy->get_content();
+
+say "\n" . $caching_proxy->get_cache_stats();
+
+# ============================================
+# 5. CHAINED PROXIES (Multiple Behaviors)
+# ============================================
+
+print_separator("5. CHAINED PROXIES - Combined Behaviors");
+
+say "Creating document with multiple proxy layers...";
+my $base_doc = RealDocument->new("important.doc");
+my $cached = CachingDocumentProxy->new($base_doc);
+my $logged = LoggingDocumentProxy->new($cached);
+my $protected = ProtectionDocumentProxy->new($logged, 'admin');
+
+say "\nAccessing through proxy chain:";
+$protected->display();
+
+print_separator("DEMONSTRATION COMPLETE");
+
+say "\nKEY BENEFITS OF PROXY PATTERN:";
+say "- Lazy loading saves resources (Virtual Proxy)";
+say "- Access control without modifying real object (Protection Proxy)";
+say "- Transparent logging and monitoring (Logging Proxy)";
+say "- Performance optimization through caching (Caching Proxy)";
+say "- Proxies can be chained for multiple behaviors";
+say "- Client code doesn't need to know about proxies";
+
+
+#======================================================================
+#  PROXY PATTERN DEMONSTRATION
+#======================================================================
+#
+#
+#======================================================================
+#  1. VIRTUAL PROXY - Lazy Loading
+#======================================================================
+#
+#Creating proxy (document NOT loaded yet)...
+#VirtualProxy: Created proxy for 'large_report.pdf' (not loaded yet)
+#
+#Doing other work...
+#...working...
+#...still working...
+#
+#Now accessing document for first time:
+#VirtualProxy: Delegating display request...
+#VirtualProxy: First access - loading real document now...
+#RealDocument: Loading 'large_report.pdf' from disk (expensive operation)...
+#RealDocument: 'large_report.pdf' loaded successfully!
+#RealDocument: Displaying content...
+#  Content of large_report.pdf: Lorem ipsum dolor sit amet...
+#
+#Accessing again (already loaded):
+#VirtualProxy: Delegating display request...
+#RealDocument: Displaying content...
+#  Content of large_report.pdf: Lorem ipsum dolor sit amet...
+#
+#======================================================================
+#  2. PROTECTION PROXY - Access Control
+#======================================================================
+#
+#--- Testing with ADMIN user ---
+#RealDocument: Loading 'confidential_data.txt' from disk (expensive operation)...
+#RealDocument: 'confidential_data.txt' loaded successfully!
+#ProtectionProxy: Created with role 'admin'
+#ProtectionProxy: Access GRANTED for display
+#RealDocument: Displaying content...
+#  Content of confidential_data.txt: Lorem ipsum dolor sit amet...
+#ProtectionProxy: Access GRANTED for modify_content (admin)
+#ProtectionProxy: Modifying content...
+#
+#--- Testing with REGULAR user ---
+#RealDocument: Loading 'public_data.txt' from disk (expensive operation)...
+#RealDocument: 'public_data.txt' loaded successfully!
+#ProtectionProxy: Created with role 'user'
+#ProtectionProxy: Access GRANTED for display
+#RealDocument: Displaying content...
+#  Content of public_data.txt: Lorem ipsum dolor sit amet...
+#ProtectionProxy: Access DENIED for modify_content (insufficient privileges)
+#
+#--- Access Log ---
+#[Tue Dec 16 14:20:46 2025] User (user) attempted: display
+#[Tue Dec 16 14:20:46 2025] User (user) attempted: modify_content
+#
+#======================================================================
+#  3. LOGGING PROXY - Request Tracking
+#======================================================================
+#
+#RealDocument: Loading 'system_log.txt' from disk (expensive operation)...
+#RealDocument: 'system_log.txt' loaded successfully!
+#LoggingProxy: Created
+#LoggingProxy: [Tue Dec 16 14:20:47 2025] display() called (call #1)
+#RealDocument: Displaying content...
+#  Content of system_log.txt: Lorem ipsum dolor sit amet...
+#LoggingProxy: display() completed in 0s
+#
+#LoggingProxy: get_content() called (call #2)
+#
+#LoggingProxy: [Tue Dec 16 14:20:47 2025] display() called (call #3)
+#RealDocument: Displaying content...
+#  Content of system_log.txt: Lorem ipsum dolor sit amet...
+#LoggingProxy: display() completed in 0s
+#
+#Total method calls: 3
+#
+#======================================================================
+#  4. CACHING PROXY - Performance Optimization
+#======================================================================
+#
+#RealDocument: Loading 'database_query.sql' from disk (expensive operation)...
+#RealDocument: 'database_query.sql' loaded successfully!
+#CachingProxy: Created with empty cache
+#First call (will cache):
+#CachingProxy: Cache MISS - fetching from real document
+#
+#Second call (from cache):
+#CachingProxy: Cache HIT! Returning cached content
+#
+#Third call (from cache):
+#CachingProxy: Cache HIT! Returning cached content
+#
+#Cache hits: 2, misses: 1
+#
+#======================================================================
+#  5. CHAINED PROXIES - Combined Behaviors
+#======================================================================
+#
+#Creating document with multiple proxy layers...
+#RealDocument: Loading 'important.doc' from disk (expensive operation)...
+#RealDocument: 'important.doc' loaded successfully!
+#CachingProxy: Created with empty cache
+#LoggingProxy: Created
+#ProtectionProxy: Created with role 'admin'
+#
+#Accessing through proxy chain:
+#ProtectionProxy: Access GRANTED for display
+#LoggingProxy: [Tue Dec 16 14:20:49 2025] display() called (call #1)
+#RealDocument: Displaying content...
+#  Content of important.doc: Lorem ipsum dolor sit amet...
+#LoggingProxy: display() completed in 0s
+#
+#======================================================================
+#  DEMONSTRATION COMPLETE
+#======================================================================
+#
+#
+#KEY BENEFITS OF PROXY PATTERN:
+#- Lazy loading saves resources (Virtual Proxy)
+#- Access control without modifying real object (Protection Proxy)
+#- Transparent logging and monitoring (Logging Proxy)
+#- Performance optimization through caching (Caching Proxy)
+#- Proxies can be chained for multiple behaviors
+#- Client code doesn't need to know about proxies
