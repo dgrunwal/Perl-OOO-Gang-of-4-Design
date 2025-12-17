@@ -1,0 +1,198 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# Base Handler class
+package Handler;
+
+sub new {
+    my ($class, $name) = @_;
+    return bless {
+        name => $name,
+        next_handler => undef
+    }, $class;
+}
+
+sub set_next {
+    my ($self, $handler) = @_;
+    $self->{next_handler} = $handler;
+    return $handler;  # Allow chaining
+}
+
+sub handle_request {
+    my ($self, $request) = @_;
+    
+    if ($self->can_handle($request)) {
+        $self->process_request($request);
+    } elsif ($self->{next_handler}) {
+        print "[$self->{name}] Cannot handle - escalating...\n";
+        $self->{next_handler}->handle_request($request);
+    } else {
+        print "[$self->{name}] Cannot handle - no further escalation available!\n";
+    }
+}
+
+sub can_handle {
+    die "Subclass must implement can_handle()";
+}
+
+sub process_request {
+    die "Subclass must implement process_request()";
+}
+
+# Frontline Agent - handles simple issues
+package FrontlineAgent;
+our @ISA = qw(Handler);
+
+sub can_handle {
+    my ($self, $request) = @_;
+    return $request->{complexity} eq 'simple';
+}
+
+sub process_request {
+    my ($self, $request) = @_;
+    print "[$self->{name}] Handling simple issue: $request->{description}\n";
+    print "  → Solution: Provided standard troubleshooting steps.\n";
+}
+
+# Specialist - handles moderate issues
+package Specialist;
+our @ISA = qw(Handler);
+
+sub can_handle {
+    my ($self, $request) = @_;
+    return $request->{complexity} eq 'moderate';
+}
+
+sub process_request {
+    my ($self, $request) = @_;
+    print "[$self->{name}] Handling moderate issue: $request->{description}\n";
+    print "  → Solution: Applied technical expertise and custom configuration.\n";
+}
+
+# Manager - handles complex issues
+package Manager;
+our @ISA = qw(Handler);
+
+sub can_handle {
+    my ($self, $request) = @_;
+    return $request->{complexity} eq 'complex';
+}
+
+sub process_request {
+    my ($self, $request) = @_;
+    print "[$self->{name}] Handling complex issue: $request->{description}\n";
+    print "  → Solution: Authorized special measures and policy exceptions.\n";
+}
+
+# Director - handles critical issues
+package Director;
+our @ISA = qw(Handler);
+
+sub can_handle {
+    my ($self, $request) = @_;
+    return $request->{complexity} eq 'critical';
+}
+
+sub process_request {
+    my ($self, $request) = @_;
+    print "[$self->{name}] Handling CRITICAL issue: $request->{description}\n";
+    print "  → Solution: Executive intervention and immediate escalation to engineering.\n";
+}
+
+# Main execution
+package main;
+
+# Build the chain of responsibility
+my $frontline = FrontlineAgent->new("Frontline Agent");
+my $specialist = Specialist->new("Technical Specialist");
+my $manager = Manager->new("Support Manager");
+my $director = Director->new("Director of Support");
+
+# Link handlers together
+$frontline->set_next($specialist)
+          ->set_next($manager)
+          ->set_next($director);
+
+# Test requests of varying complexity
+my @requests = (
+    {
+        complexity => 'simple',
+        description => 'Password reset request'
+    },
+    {
+        complexity => 'moderate',
+        description => 'Software integration problem'
+    },
+    {
+        complexity => 'complex',
+        description => 'Data migration failure affecting multiple clients'
+    },
+    {
+        complexity => 'critical',
+        description => 'System-wide outage affecting all customers'
+    },
+    {
+        complexity => 'unknown',
+        description => 'Unclassified issue type'
+    }
+);
+
+# Process each request through the chain
+for my $i (0 .. $#requests) {
+    print "\n" . "=" x 60 . "\n";
+    print "REQUEST #" . ($i + 1) . "\n";
+    print "=" x 60 . "\n";
+    $frontline->handle_request($requests[$i]);
+}
+
+print "\n" . "=" x 60 . "\n";
+print "All requests processed!\n";
+
+
+#============================================================
+#REQUEST #1
+#============================================================
+#[Frontline Agent] Handling simple issue: Password reset request
+#  ΓåÆ Solution: Provided standard troubleshooting steps.
+#
+#============================================================
+#REQUEST #2
+#============================================================
+#[Frontline Agent] Cannot handle - escalating...
+#[Technical Specialist] Handling moderate issue: Software integration problem
+#  Solution: Applied technical expertise and custom configuration.
+#
+#============================================================
+#REQUEST #3
+#============================================================
+#[Frontline Agent] Cannot handle - escalating...
+#[Technical Specialist] Cannot handle - escalating...
+#[Support Manager] Handling complex issue: Data migration failure affecting multiple clients
+#  Solution: Authorized special measures and policy exceptions.
+#
+#============================================================
+#REQUEST #4
+#============================================================
+#[Frontline Agent] Cannot handle - escalating...
+#[Technical Specialist] Cannot handle - escalating...
+#[Support Manager] Cannot handle - escalating...
+#[Director of Support] Handling CRITICAL issue: System-wide outage affecting all customers
+#  Solution: Executive intervention and immediate escalation to engineering.
+#
+#============================================================
+#REQUEST #5
+#============================================================
+#[Frontline Agent] Cannot handle - escalating...
+#[Technical Specialist] Cannot handle - escalating...
+#[Support Manager] Cannot handle - escalating...
+#[Director of Support] Cannot handle - no further escalation available!
+#
+#============================================================
+#All requests processed!
+
+#The Chain of Responsibility Pattern establishes a pipeline of possible handlers, each 
+#with equal opportunity to take action. It encourages structured delegation, which 
+#involves the clear distribution of labor and responsibilities, similar to the way customer 
+#support escalation works. When you want flexible, dynamic request processing where no 
+#one class should have all the knowledge, it’s perfect.
