@@ -1,0 +1,427 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use v5.10;
+
+###############################################################################
+# INTERPRETER DESIGN PATTERN
+# A mathematical expression evaluator using Abstract Syntax Tree (AST)
+# Supports: addition, subtraction, multiplication, division, and numbers
+# Using @ISA for inheritance (classic Perl OOP)
+###############################################################################
+
+# ===========================================================================
+# ABSTRACT EXPRESSION (Base Class)
+# ===========================================================================
+package Expression;
+
+sub new {
+    my $class = shift;
+    my $self = { @_ };
+    bless $self, $class;
+    return $self;
+}
+
+# Abstract method - must be implemented by subclasses
+sub interpret {
+    my ($self, $context) = @_;
+    die "interpret() must be implemented by subclass";
+}
+
+sub to_string {
+    my $self = shift;
+    return ref($self);
+}
+
+# ===========================================================================
+# TERMINAL EXPRESSION - Number
+# ===========================================================================
+package NumberExpression;
+our @ISA = ('Expression');
+
+sub new {
+    my ($class, $value) = @_;
+    my $self = $class->SUPER::new();
+    $self->{value} = $value;
+    return $self;
+}
+
+sub interpret {
+    my ($self, $context) = @_;
+    return $self->{value};
+}
+
+sub to_string {
+    my $self = shift;
+    return $self->{value};
+}
+
+# ===========================================================================
+# TERMINAL EXPRESSION - Variable
+# ===========================================================================
+package VariableExpression;
+our @ISA = ('Expression');
+
+sub new {
+    my ($class, $name) = @_;
+    my $self = $class->SUPER::new();
+    $self->{name} = $name;
+    return $self;
+}
+
+sub interpret {
+    my ($self, $context) = @_;
+    my $name = $self->{name};
+    
+    if (exists $context->{$name}) {
+        return $context->{$name};
+    }
+    die "Variable '$name' not defined in context";
+}
+
+sub to_string {
+    my $self = shift;
+    return $self->{name};
+}
+
+# ===========================================================================
+# NON-TERMINAL EXPRESSION - Addition
+# ===========================================================================
+package AddExpression;
+our @ISA = ('Expression');
+
+sub new {
+    my ($class, $left, $right) = @_;
+    my $self = $class->SUPER::new();
+    $self->{left} = $left;
+    $self->{right} = $right;
+    return $self;
+}
+
+sub interpret {
+    my ($self, $context) = @_;
+    return $self->{left}->interpret($context) + 
+           $self->{right}->interpret($context);
+}
+
+sub to_string {
+    my $self = shift;
+    return "(" . $self->{left}->to_string . " + " . 
+           $self->{right}->to_string . ")";
+}
+
+# ===========================================================================
+# NON-TERMINAL EXPRESSION - Subtraction
+# ===========================================================================
+package SubtractExpression;
+our @ISA = ('Expression');
+
+sub new {
+    my ($class, $left, $right) = @_;
+    my $self = $class->SUPER::new();
+    $self->{left} = $left;
+    $self->{right} = $right;
+    return $self;
+}
+
+sub interpret {
+    my ($self, $context) = @_;
+    return $self->{left}->interpret($context) - 
+           $self->{right}->interpret($context);
+}
+
+sub to_string {
+    my $self = shift;
+    return "(" . $self->{left}->to_string . " - " . 
+           $self->{right}->to_string . ")";
+}
+
+# ===========================================================================
+# NON-TERMINAL EXPRESSION - Multiplication
+# ===========================================================================
+package MultiplyExpression;
+our @ISA = ('Expression');
+
+sub new {
+    my ($class, $left, $right) = @_;
+    my $self = $class->SUPER::new();
+    $self->{left} = $left;
+    $self->{right} = $right;
+    return $self;
+}
+
+sub interpret {
+    my ($self, $context) = @_;
+    return $self->{left}->interpret($context) * 
+           $self->{right}->interpret($context);
+}
+
+sub to_string {
+    my $self = shift;
+    return "(" . $self->{left}->to_string . " * " . 
+           $self->{right}->to_string . ")";
+}
+
+# ===========================================================================
+# NON-TERMINAL EXPRESSION - Division
+# ===========================================================================
+package DivideExpression;
+our @ISA = ('Expression');
+
+sub new {
+    my ($class, $left, $right) = @_;
+    my $self = $class->SUPER::new();
+    $self->{left} = $left;
+    $self->{right} = $right;
+    return $self;
+}
+
+sub interpret {
+    my ($self, $context) = @_;
+    my $divisor = $self->{right}->interpret($context);
+    
+    die "Division by zero" if $divisor == 0;
+    
+    return $self->{left}->interpret($context) / $divisor;
+}
+
+sub to_string {
+    my $self = shift;
+    return "(" . $self->{left}->to_string . " / " . 
+           $self->{right}->to_string . ")";
+}
+
+# ===========================================================================
+# CONTEXT - Stores variable values
+# ===========================================================================
+package Context;
+
+sub new {
+    my $class = shift;
+    my $self = {
+        variables => {}
+    };
+    bless $self, $class;
+    return $self;
+}
+
+sub set_variable {
+    my ($self, $name, $value) = @_;
+    $self->{variables}->{$name} = $value;
+}
+
+sub get_variable {
+    my ($self, $name) = @_;
+    return $self->{variables}->{$name};
+}
+
+sub get_variables {
+    my $self = shift;
+    return $self->{variables};
+}
+
+# ===========================================================================
+# MAIN DEMONSTRATION
+# ===========================================================================
+package main;
+
+sub print_header {
+    my $text = shift;
+    say "\n" . "=" x 60;
+    say $text;
+    say "=" x 60;
+}
+
+sub evaluate_expression {
+    my ($expr, $context, $description) = @_;
+    
+    say "\n$description";
+    say "Expression: " . $expr->to_string;
+    
+    my $result = eval { $expr->interpret($context) };
+    
+    if ($@) {
+        say "Error: $@";
+    } else {
+        say "Result: $result";
+    }
+}
+
+# Create context for variable storage
+my $context = Context->new;
+
+print_header("INTERPRETER PATTERN DEMONSTRATION");
+say "Building and evaluating mathematical expressions using AST";
+say "Using classic Perl OOP with \@ISA inheritance";
+
+# ===========================================================================
+# Example 1: Simple arithmetic with numbers
+# Expression: (2 + 3) * 4 = 20
+# ===========================================================================
+print_header("Example 1: (2 + 3) * 4");
+
+my $expr1 = MultiplyExpression->new(
+    AddExpression->new(
+        NumberExpression->new(2),
+        NumberExpression->new(3)
+    ),
+    NumberExpression->new(4)
+);
+
+evaluate_expression($expr1, $context->get_variables, "Simple calculation");
+
+# ===========================================================================
+# Example 2: Using variables
+# Expression: (x + y) - z where x=10, y=5, z=3 = 12
+# ===========================================================================
+print_header("Example 2: (x + y) - z with variables");
+
+$context->set_variable('x', 10);
+$context->set_variable('y', 5);
+$context->set_variable('z', 3);
+
+say "Context: x=10, y=5, z=3";
+
+my $expr2 = SubtractExpression->new(
+    AddExpression->new(
+        VariableExpression->new('x'),
+        VariableExpression->new('y')
+    ),
+    VariableExpression->new('z')
+);
+
+evaluate_expression($expr2, $context->get_variables, "Variable-based calculation");
+
+# ===========================================================================
+# Example 3: Complex expression
+# Expression: ((a * b) + (c / d)) where a=4, b=5, c=20, d=2 = 30
+# ===========================================================================
+print_header("Example 3: ((a * b) + (c / d))");
+
+$context->set_variable('a', 4);
+$context->set_variable('b', 5);
+$context->set_variable('c', 20);
+$context->set_variable('d', 2);
+
+say "Context: a=4, b=5, c=20, d=2";
+
+my $expr3 = AddExpression->new(
+    MultiplyExpression->new(
+        VariableExpression->new('a'),
+        VariableExpression->new('b')
+    ),
+    DivideExpression->new(
+        VariableExpression->new('c'),
+        VariableExpression->new('d')
+    )
+);
+
+evaluate_expression($expr3, $context->get_variables, "Complex nested calculation");
+
+# ===========================================================================
+# Example 4: Error handling - Division by zero
+# ===========================================================================
+print_header("Example 4: Error Handling - Division by Zero");
+
+my $expr4 = DivideExpression->new(
+    NumberExpression->new(10),
+    NumberExpression->new(0)
+);
+
+evaluate_expression($expr4, $context->get_variables, "Testing division by zero");
+
+# ===========================================================================
+# Example 5: Error handling - Undefined variable
+# ===========================================================================
+print_header("Example 5: Error Handling - Undefined Variable");
+
+my $expr5 = AddExpression->new(
+    VariableExpression->new('undefined_var'),
+    NumberExpression->new(5)
+);
+
+evaluate_expression($expr5, $context->get_variables, "Testing undefined variable");
+
+# ===========================================================================
+# Example 6: Reusable sub-expressions
+# ===========================================================================
+print_header("Example 6: Reusable Sub-expressions");
+
+say "\nDemonstrating expression reusability...";
+say "Context: x=7, y=3";
+
+$context->set_variable('x', 7);
+$context->set_variable('y', 3);
+
+# Create reusable sub-expression
+my $sum = AddExpression->new(
+    VariableExpression->new('x'),
+    VariableExpression->new('y')
+);
+
+# Use it in multiple expressions
+my $expr6a = MultiplyExpression->new(
+    $sum,
+    NumberExpression->new(2)
+);
+
+my $expr6b = SubtractExpression->new(
+    $sum,
+    NumberExpression->new(1)
+);
+
+evaluate_expression($expr6a, $context->get_variables, "Expression A: (x + y) * 2");
+evaluate_expression($expr6b, $context->get_variables, "Expression B: (x + y) - 1");
+
+# ===========================================================================
+# Example 7: Deeply nested expression
+# ===========================================================================
+print_header("Example 7: Deeply Nested Expression");
+
+say "\nExpression: (((10 + 5) * 2) - (8 / 4))";
+
+my $expr7 = SubtractExpression->new(
+    MultiplyExpression->new(
+        AddExpression->new(
+            NumberExpression->new(10),
+            NumberExpression->new(5)
+        ),
+        NumberExpression->new(2)
+    ),
+    DivideExpression->new(
+        NumberExpression->new(8),
+        NumberExpression->new(4)
+    )
+);
+
+evaluate_expression($expr7, $context->get_variables, "Demonstrating deep nesting");
+
+# ===========================================================================
+# Summary
+# ===========================================================================
+print_header("PATTERN BENEFITS DEMONSTRATED");
+
+say "
+ Extensibility: Easy to add new operations (just create new expression classes)
+ Modularity: Each grammar rule is isolated in its own class
+ Composability: Complex expressions built from simple ones
+ Type Safety: Each expression type has its own class
+ Reusability: Sub-expressions can be reused in multiple contexts
+ Error Handling: Graceful handling of runtime errors
+ Readability: Expression tree structure is clear and intuitive
+
+Implementation Details:
+ Uses classic Perl OOP with \@ISA for inheritance
+ No external dependencies (no Moo or Moose required)
+ Single file executable
+ SUPER::new() for proper inheritance chain
+
+This pattern is ideal for:
+ Calculators and formula evaluators
+ Rule engines
+ Domain-specific languages (DSLs)
+ Query languages
+ Configuration parsers
+";
+
+print_header("END OF DEMONSTRATION");
