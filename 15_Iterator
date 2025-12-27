@@ -1,0 +1,252 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# ============================================
+# Collection Class - Stores book titles
+# ============================================
+package BookCollection;
+
+sub new {
+    my ($class) = @_;
+    my $self = {
+        books => []
+    };
+    bless $self, $class;
+    return $self;
+}
+
+sub add_book {
+    my ($self, $book) = @_;
+    push @{$self->{books}}, $book;
+}
+
+sub get_iterator {
+    my ($self) = @_;
+    return BookIterator->new($self->{books});
+}
+
+sub get_reverse_iterator {
+    my ($self) = @_;
+    return ReverseBookIterator->new($self->{books});
+}
+
+# ============================================
+# Base Iterator Interface
+# ============================================
+package Iterator;
+
+sub new {
+    my ($class, $books) = @_;
+    my $self = {
+        books => $books,
+        position => 0
+    };
+    bless $self, $class;
+    return $self;
+}
+
+sub has_next {
+    die "Must be implemented by subclass";
+}
+
+sub next {
+    die "Must be implemented by subclass";
+}
+
+sub reset {
+    my ($self) = @_;
+    $self->{position} = 0;
+}
+
+# ============================================
+# Forward Iterator (inherits from Iterator)
+# ============================================
+package BookIterator;
+our @ISA = ('Iterator');  # Inheritance using @ISA
+
+sub has_next {
+    my ($self) = @_;
+    return $self->{position} < scalar @{$self->{books}};
+}
+
+sub next {
+    my ($self) = @_;
+    if ($self->has_next()) {
+        my $book = $self->{books}->[$self->{position}];
+        $self->{position}++;
+        return $book;
+    }
+    return undef;
+}
+
+# ============================================
+# Reverse Iterator (inherits from Iterator)
+# ============================================
+package ReverseBookIterator;
+our @ISA = ('Iterator');  # Inheritance using @ISA
+
+sub new {
+    my ($class, $books) = @_;
+    my $self = $class->SUPER::new($books);
+    $self->{position} = scalar @{$books} - 1;  # Start at end
+    bless $self, $class;
+    return $self;
+}
+
+sub has_next {
+    my ($self) = @_;
+    return $self->{position} >= 0;
+}
+
+sub next {
+    my ($self) = @_;
+    if ($self->has_next()) {
+        my $book = $self->{books}->[$self->{position}];
+        $self->{position}--;
+        return $book;
+    }
+    return undef;
+}
+
+sub reset {
+    my ($self) = @_;
+    $self->{position} = scalar @{$self->{books}} - 1;
+}
+
+# ============================================
+# Main Program - Demonstration
+# ============================================
+package main;
+
+print "=" x 50 . "\n";
+print "Iterator Pattern Example - Book Collection\n";
+print "=" x 50 . "\n\n";
+
+# Create a collection and add books
+my $library = BookCollection->new();
+$library->add_book("The Pragmatic Programmer");
+$library->add_book("Design Patterns");
+$library->add_book("Clean Code");
+$library->add_book("Refactoring");
+$library->add_book("Code Complete");
+
+# Forward iteration
+print "Forward Iteration:\n";
+print "-" x 50 . "\n";
+my $forward_iter = $library->get_iterator();
+my $count = 1;
+while ($forward_iter->has_next()) {
+    my $book = $forward_iter->next();
+    print "$count. $book\n";
+    $count++;
+}
+
+print "\n";
+
+# Reverse iteration
+print "Reverse Iteration:\n";
+print "-" x 50 . "\n";
+my $reverse_iter = $library->get_reverse_iterator();
+$count = 1;
+while ($reverse_iter->has_next()) {
+    my $book = $reverse_iter->next();
+    print "$count. $book\n";
+    $count++;
+}
+
+print "\n";
+
+# Multiple concurrent traversals
+print "Multiple Concurrent Traversals:\n";
+print "-" x 50 . "\n";
+my $iter1 = $library->get_iterator();
+my $iter2 = $library->get_iterator();
+
+print "Iterator 1 - First two books:\n";
+print "  " . $iter1->next() . "\n" if $iter1->has_next();
+print "  " . $iter1->next() . "\n" if $iter1->has_next();
+
+print "\nIterator 2 - First book:\n";
+print "  " . $iter2->next() . "\n" if $iter2->has_next();
+
+print "\nIterator 1 - Next book:\n";
+print "  " . $iter1->next() . "\n" if $iter1->has_next();
+
+print "\nIterator 2 - Next two books:\n";
+print "  " . $iter2->next() . "\n" if $iter2->has_next();
+print "  " . $iter2->next() . "\n" if $iter2->has_next();
+
+print "\n";
+
+# Reset and iterate again
+print "Reset and Iterate Again:\n";
+print "-" x 50 . "\n";
+$forward_iter->reset();
+$count = 1;
+while ($forward_iter->has_next() && $count <= 3) {
+    my $book = $forward_iter->next();
+    print "$count. $book\n";
+    $count++;
+}
+
+print "\n" . "=" x 50 . "\n";
+print "Iterator Pattern Benefits Demonstrated:\n";
+print "=" x 50 . "\n";
+print "Decoupling: Clients don't know internal array structure\n";
+print "Multiple traversals: iter1 and iter2 operate independently\n";
+print "Consistent interface: has_next() and next() for all iterators\n";
+print "Different algorithms: Forward and Reverse without changing collection\n";
+print "=" x 50 . "\n";
+
+#==================================================
+#Iterator Pattern Example - Book Collection
+#==================================================
+#
+#Forward Iteration:
+#--------------------------------------------------
+#1. The Pragmatic Programmer
+#2. Design Patterns
+#3. Clean Code
+#4. Refactoring
+#5. Code Complete
+#
+#Reverse Iteration:
+#--------------------------------------------------
+#1. Code Complete
+#2. Refactoring
+#3. Clean Code
+#4. Design Patterns
+#5. The Pragmatic Programmer
+#
+#Multiple Concurrent Traversals:
+#--------------------------------------------------
+#Iterator 1 - First two books:
+#  The Pragmatic Programmer
+#  Design Patterns
+#
+#Iterator 2 - First book:
+#  The Pragmatic Programmer
+#
+#Iterator 1 - Next book:
+#  Clean Code
+#
+#Iterator 2 - Next two books:
+#  Design Patterns
+#  Clean Code
+#
+#Reset and Iterate Again:
+#--------------------------------------------------
+#1. The Pragmatic Programmer
+#2. Design Patterns
+#3. Clean Code
+#
+#==================================================
+#Iterator Pattern Benefits Demonstrated:
+#==================================================
+#Decoupling: Clients don't know internal array structure
+#Multiple traversals: iter1 and iter2 operate independently
+#Consistent interface: has_next() and next() for all iterators
+#Different algorithms: Forward and Reverse without changing collection
+#==================================================
+#
