@@ -1,0 +1,105 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# Mediator (Interface/Base Class)
+package Mediator;
+sub new {
+    my $class = shift;
+    return bless {}, $class;
+}
+sub notify {
+    die "Must override notify method";
+}
+
+# ConcreteMediator - Air Traffic Control Tower
+package ControlTower;
+our @ISA = ('Mediator');
+
+sub new {
+    my $class = shift;
+    my $self = $class->SUPER::new();
+    $self->{aircraft} = [];
+    return $self;
+}
+
+sub register_aircraft {
+    my ($self, $aircraft) = @_;
+    push @{$self->{aircraft}}, $aircraft;
+    $aircraft->{mediator} = $self;
+}
+
+sub notify {
+    my ($self, $sender, $event) = @_;
+    print "Tower: Received '$event' from $sender->{callsign}\n";
+    
+    # Coordinate and broadcast to other aircraft
+    foreach my $aircraft (@{$self->{aircraft}}) {
+        if ($aircraft ne $sender) {
+            $aircraft->receive("$sender->{callsign}: $event");
+        }
+    }
+}
+
+# Colleague - Aircraft
+package Aircraft;
+
+sub new {
+    my ($class, $callsign) = @_;
+    return bless {
+        callsign => $callsign,
+        mediator => undef
+    }, $class;
+}
+
+sub send {
+    my ($self, $message) = @_;
+    print "$self->{callsign}: Sending '$message'\n";
+    $self->{mediator}->notify($self, $message) if $self->{mediator};
+}
+
+sub receive {
+    my ($self, $message) = @_;
+    print "$self->{callsign}: Received '$message'\n";
+}
+
+# Main Program
+package main;
+
+# Create the mediator (tower)
+my $tower = ControlTower->new();
+
+# Create aircraft (colleagues)
+my $flight1 = Aircraft->new("AA123");
+my $flight2 = Aircraft->new("BA456");
+my $flight3 = Aircraft->new("DL789");
+
+# Register aircraft with tower
+$tower->register_aircraft($flight1);
+$tower->register_aircraft($flight2);
+$tower->register_aircraft($flight3);
+
+# Aircraft communicate through the tower
+print "=== Communication via Mediator ===\n";
+$flight1->send("Requesting landing clearance");
+print "\n";
+$flight2->send("Taking off from runway 27");
+print "\n";
+$flight3->send("Holding at 10,000 feet");
+
+#**Output:**
+#=== Communication via Mediator ===
+#AA123: Sending 'Requesting landing clearance'
+#Tower: Received 'Requesting landing clearance' from AA123
+#BA456: Received 'AA123: Requesting landing clearance'
+#DL789: Received 'AA123: Requesting landing clearance'
+#
+#BA456: Sending 'Taking off from runway 27'
+#Tower: Received 'Taking off from runway 27' from BA456
+#AA123: Received 'BA456: Taking off from runway 27'
+#DL789: Received 'BA456: Taking off from runway 27'
+#
+#DL789: Sending 'Holding at 10,000 feet'
+#Tower: Received 'Holding at 10,000 feet' from DL789
+#AA123: Received 'DL789: Holding at 10,000 feet'
+#BA456: Received 'DL789: Holding at 10,000 feet'
