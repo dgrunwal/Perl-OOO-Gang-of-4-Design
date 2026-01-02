@@ -1,0 +1,233 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# Memento - Stores the state snapshot
+package EditorMemento;
+
+sub new {
+    my ($class, $content, $cursor_position) = @_;
+    return bless {
+        content => $content,
+        cursor_position => $cursor_position
+    }, $class;
+}
+
+sub get_content {
+    my $self = shift;
+    return $self->{content};
+}
+
+sub get_cursor_position {
+    my $self = shift;
+    return $self->{cursor_position};
+}
+
+# Originator - The object whose state we want to save/restore
+package TextEditor;
+
+sub new {
+    my $class = shift;
+    return bless {
+        content => "",
+        cursor_position => 0
+    }, $class;
+}
+
+sub type {
+    my ($self, $text) = @_;
+    $self->{content} .= $text;
+    $self->{cursor_position} = length($self->{content});
+    print "Editor: Typed '$text'\n";
+}
+
+sub delete_last_word {
+    my $self = shift;
+    $self->{content} =~ s/\s*\S+\s*$//;
+    $self->{cursor_position} = length($self->{content});
+    print "Editor: Deleted last word\n";
+}
+
+sub set_content {
+    my ($self, $content) = @_;
+    $self->{content} = $content;
+    $self->{cursor_position} = length($content);
+}
+
+sub get_content {
+    my $self = shift;
+    return $self->{content};
+}
+
+sub get_cursor_position {
+    my $self = shift;
+    return $self->{cursor_position};
+}
+
+# Create a memento containing current state
+sub save {
+    my $self = shift;
+    print "Editor: Saving state...\n";
+    return EditorMemento->new($self->{content}, $self->{cursor_position});
+}
+
+# Restore state from a memento
+sub restore {
+    my ($self, $memento) = @_;
+    $self->{content} = $memento->get_content();
+    $self->{cursor_position} = $memento->get_cursor_position();
+    print "Editor: State restored\n";
+}
+
+sub display {
+    my $self = shift;
+    print "Current content: '$self->{content}' (cursor at: $self->{cursor_position})\n";
+}
+
+# Caretaker - Manages mementos without examining their contents
+package History;
+
+sub new {
+    my $class = shift;
+    return bless {
+        history => []
+    }, $class;
+}
+
+sub push {
+    my ($self, $memento) = @_;
+    push @{$self->{history}}, $memento;
+    print "History: Saved checkpoint (total: " . scalar(@{$self->{history}}) . ")\n";
+}
+
+sub pop {
+    my $self = shift;
+    if (@{$self->{history}} > 0) {
+        print "History: Restoring previous checkpoint\n";
+        return pop @{$self->{history}};
+    }
+    print "History: No more undo history available\n";
+    return undef;
+}
+
+sub size {
+    my $self = shift;
+    return scalar @{$self->{history}};
+}
+
+# Main Program - Demonstrating Memento Pattern
+package main;
+
+print "=== Text Editor with Undo (Memento Pattern) ===\n\n";
+
+# Create editor and history
+my $editor = TextEditor->new();
+my $history = History->new();
+
+# Type some text
+print "--- Action 1: Type 'Hello' ---\n";
+$history->push($editor->save());
+$editor->type("Hello");
+$editor->display();
+print "\n";
+
+# Type more text
+print "--- Action 2: Type ' World' ---\n";
+$history->push($editor->save());
+$editor->type(" World");
+$editor->display();
+print "\n";
+
+# Type even more
+print "--- Action 3: Type '!' ---\n";
+$history->push($editor->save());
+$editor->type("!");
+$editor->display();
+print "\n";
+
+# Delete last word
+print "--- Action 4: Delete last word ---\n";
+$history->push($editor->save());
+$editor->delete_last_word();
+$editor->display();
+print "\n";
+
+# Undo operations
+print "--- Undo 1 ---\n";
+my $memento = $history->pop();
+$editor->restore($memento) if $memento;
+$editor->display();
+print "\n";
+
+print "--- Undo 2 ---\n";
+$memento = $history->pop();
+$editor->restore($memento) if $memento;
+$editor->display();
+print "\n";
+
+print "--- Undo 3 ---\n";
+$memento = $history->pop();
+$editor->restore($memento) if $memento;
+$editor->display();
+print "\n";
+
+print "--- Undo 4 ---\n";
+$memento = $history->pop();
+$editor->restore($memento) if $memento;
+$editor->display();
+print "\n";
+
+print "--- Try Undo 5 (should fail - no more history) ---\n";
+$memento = $history->pop();
+$editor->restore($memento) if $memento;
+$editor->display();
+
+#=== Text Editor with Undo (Memento Pattern) ===
+#
+#--- Action 1: Type 'Hello' ---
+#Editor: Saving state...
+#History: Saved checkpoint (total: 1)
+#Editor: Typed 'Hello'
+#Current content: 'Hello' (cursor at: 5)
+#
+#--- Action 2: Type ' World' ---
+#Editor: Saving state...
+#History: Saved checkpoint (total: 2)
+#Editor: Typed ' World'
+#Current content: 'Hello World' (cursor at: 11)
+#
+#--- Action 3: Type '!' ---
+#Editor: Saving state...
+#History: Saved checkpoint (total: 3)
+#Editor: Typed '!'
+#Current content: 'Hello World!' (cursor at: 12)
+#
+#--- Action 4: Delete last word ---
+#Editor: Saving state...
+#History: Saved checkpoint (total: 4)
+#Editor: Deleted last word
+#Current content: 'Hello' (cursor at: 5)
+#
+#--- Undo 1 ---
+#History: Restoring previous checkpoint
+#Editor: State restored
+#Current content: 'Hello World!' (cursor at: 12)
+#
+#--- Undo 2 ---
+#History: Restoring previous checkpoint
+#Editor: State restored
+#Current content: 'Hello World' (cursor at: 11)
+#
+#--- Undo 3 ---
+#History: Restoring previous checkpoint
+#Editor: State restored
+#Current content: 'Hello' (cursor at: 5)
+#
+#--- Undo 4 ---
+#History: Restoring previous checkpoint
+#Editor: State restored
+#Current content: '' (cursor at: 0)
+#
+#--- Try Undo 5 (should fail - no more history) ---
+#History: No more undo history available
+#Current content: '' (cursor at: 0)
