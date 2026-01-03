@@ -1,0 +1,332 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# Observer Interface
+package Observer;
+
+sub new {
+    my $class = shift;
+    return bless {}, $class;
+}
+
+sub update {
+    die "Must override update method";
+}
+
+# Subject Interface
+package Subject;
+
+sub new {
+    my $class = shift;
+    return bless {
+        observers => []
+    }, $class;
+}
+
+sub attach {
+    my ($self, $observer) = @_;
+    push @{$self->{observers}}, $observer;
+    print "Subject: Observer attached (total: " . scalar(@{$self->{observers}}) . ")\n";
+}
+
+sub detach {
+    my ($self, $observer) = @_;
+    my @new_list = grep { $_ != $observer } @{$self->{observers}};
+    $self->{observers} = \@new_list;
+    print "Subject: Observer detached (remaining: " . scalar(@{$self->{observers}}) . ")\n";
+}
+
+sub notify {
+    my $self = shift;
+    print "Subject: Notifying all observers...\n";
+    foreach my $observer (@{$self->{observers}}) {
+        $observer->update($self);
+    }
+}
+
+# Concrete Subject - Weather Station
+package WeatherStation;
+our @ISA = ('Subject');
+
+sub new {
+    my $class = shift;
+    my $self = $class->SUPER::new();
+    $self->{temperature} = 0;
+    $self->{humidity} = 0;
+    $self->{pressure} = 0;
+    return $self;
+}
+
+sub set_measurements {
+    my ($self, $temp, $humidity, $pressure) = @_;
+    print "\n=== Weather Station: New measurements received ===\n";
+    print "Temperature: $temp°C, Humidity: $humidity%, Pressure: ${pressure}hPa\n";
+    
+    $self->{temperature} = $temp;
+    $self->{humidity} = $humidity;
+    $self->{pressure} = $pressure;
+    
+    $self->notify();
+}
+
+sub get_temperature {
+    my $self = shift;
+    return $self->{temperature};
+}
+
+sub get_humidity {
+    my $self = shift;
+    return $self->{humidity};
+}
+
+sub get_pressure {
+    my $self = shift;
+    return $self->{pressure};
+}
+
+# Concrete Observer - Current Conditions Display
+package CurrentConditionsDisplay;
+our @ISA = ('Observer');
+
+sub new {
+    my ($class, $name) = @_;
+    my $self = $class->SUPER::new();
+    $self->{name} = $name;
+    $self->{temperature} = 0;
+    $self->{humidity} = 0;
+    return $self;
+}
+
+sub update {
+    my ($self, $subject) = @_;
+    $self->{temperature} = $subject->get_temperature();
+    $self->{humidity} = $subject->get_humidity();
+    $self->display();
+}
+
+sub display {
+    my $self = shift;
+    print "[$self->{name}] Current conditions: $self->{temperature}°C and $self->{humidity}% humidity\n";
+}
+
+# Concrete Observer - Statistics Display
+package StatisticsDisplay;
+our @ISA = ('Observer');
+
+sub new {
+    my ($class, $name) = @_;
+    my $self = $class->SUPER::new();
+    $self->{name} = $name;
+    $self->{temperatures} = [];
+    return $self;
+}
+
+sub update {
+    my ($self, $subject) = @_;
+    my $temp = $subject->get_temperature();
+    push @{$self->{temperatures}}, $temp;
+    $self->display();
+}
+
+sub display {
+    my $self = shift;
+    my $count = scalar @{$self->{temperatures}};
+    return unless $count > 0;
+    
+    my $sum = 0;
+    my $min = $self->{temperatures}[0];
+    my $max = $self->{temperatures}[0];
+    
+    foreach my $temp (@{$self->{temperatures}}) {
+        $sum += $temp;
+        $min = $temp if $temp < $min;
+        $max = $temp if $temp > $max;
+    }
+    
+    my $avg = sprintf("%.1f", $sum / $count);
+    print "[$self->{name}] Avg/Min/Max temperature: $avg°C / $min°C / $max°C\n";
+}
+
+# Concrete Observer - Forecast Display
+package ForecastDisplay;
+our @ISA = ('Observer');
+
+sub new {
+    my ($class, $name) = @_;
+    my $self = $class->SUPER::new();
+    $self->{name} = $name;
+    $self->{last_pressure} = 0;
+    $self->{current_pressure} = 0;
+    return $self;
+}
+
+sub update {
+    my ($self, $subject) = @_;
+    $self->{last_pressure} = $self->{current_pressure};
+    $self->{current_pressure} = $subject->get_pressure();
+    $self->display();
+}
+
+sub display {
+    my $self = shift;
+    my $forecast = "Unknown";
+    
+    if ($self->{current_pressure} > $self->{last_pressure}) {
+        $forecast = "Improving weather on the way!";
+    } elsif ($self->{current_pressure} < $self->{last_pressure}) {
+        $forecast = "Watch out for cooler, rainy weather";
+    } else {
+        $forecast = "More of the same";
+    }
+    
+    print "[$self->{name}] Forecast: $forecast (Pressure: $self->{current_pressure}hPa)\n";
+}
+
+# Concrete Observer - Alert System
+package AlertSystem;
+our @ISA = ('Observer');
+
+sub new {
+    my ($class, $name) = @_;
+    my $self = $class->SUPER::new();
+    $self->{name} = $name;
+    return $self;
+}
+
+sub update {
+    my ($self, $subject) = @_;
+    my $temp = $subject->get_temperature();
+    my $humidity = $subject->get_humidity();
+    
+    my @alerts;
+    push @alerts, "HIGH TEMPERATURE ALERT!" if $temp > 35;
+    push @alerts, "FREEZING TEMPERATURE ALERT!" if $temp < 0;
+    push @alerts, "HIGH HUMIDITY ALERT!" if $humidity > 80;
+    
+    if (@alerts) {
+        print "[$self->{name}]   " . join(", ", @alerts) . "\n";
+    }
+}
+
+# Main Program - Demonstrating Observer Pattern
+package main;
+
+print "=== Weather Monitoring System (Observer Pattern) ===\n";
+
+# Create the subject (weather station)
+my $weather_station = WeatherStation->new();
+
+# Create observers (displays)
+my $current_display = CurrentConditionsDisplay->new("Current Display");
+my $statistics_display = StatisticsDisplay->new("Statistics Display");
+my $forecast_display = ForecastDisplay->new("Forecast Display");
+my $alert_system = AlertSystem->new("Alert System");
+
+print "\n--- Registering Observers ---\n";
+$weather_station->attach($current_display);
+$weather_station->attach($statistics_display);
+$weather_station->attach($forecast_display);
+$weather_station->attach($alert_system);
+
+# Simulate weather changes
+print "\n" . "=" x 60 . "\n";
+$weather_station->set_measurements(25, 65, 1013);
+
+print "\n" . "=" x 60 . "\n";
+$weather_station->set_measurements(28, 70, 1015);
+
+print "\n" . "=" x 60 . "\n";
+$weather_station->set_measurements(22, 75, 1010);
+
+print "\n" . "=" x 60 . "\n";
+$weather_station->set_measurements(38, 85, 1008);
+
+# Demonstrate dynamic detachment
+print "\n" . "=" x 60 . "\n";
+print "\n--- Removing Alert System ---\n";
+$weather_station->detach($alert_system);
+
+print "\n" . "=" x 60 . "\n";
+$weather_station->set_measurements(20, 60, 1012);
+
+print "\n=== Demonstration Complete ===\n";
+
+#=== Weather Monitoring System (Observer Pattern) ===
+#
+#--- Registering Observers ---
+#Subject: Observer attached (total: 1)
+#Subject: Observer attached (total: 2)
+#Subject: Observer attached (total: 3)
+#Subject: Observer attached (total: 4)
+#
+#============================================================
+#
+#=== Weather Station: New measurements received ===
+#Temperature: 25┬░C, Humidity: 65%, Pressure: 1013hPa
+#Subject: Notifying all observers...
+#[Current Display] Current conditions: 25┬░C and 65% humidity
+#[Statistics Display] Avg/Min/Max temperature: 25.0┬░C / 25┬░C / 25┬░C
+#[Forecast Display] Forecast: Improving weather on the way! (Pressure: 1013hPa)
+#
+#============================================================
+#
+#=== Weather Station: New measurements received ===
+#Temperature: 28┬░C, Humidity: 70%, Pressure: 1015hPa
+#Subject: Notifying all observers...
+#[Current Display] Current conditions: 28┬░C and 70% humidity
+#[Statistics Display] Avg/Min/Max temperature: 26.5┬░C / 25┬░C / 28┬░C
+#[Forecast Display] Forecast: Improving weather on the way! (Pressure: 1015hPa)
+#
+#============================================================
+#
+#=== Weather Station: New measurements received ===
+#Temperature: 22┬░C, Humidity: 75%, Pressure: 1010hPa
+#Subject: Notifying all observers...
+#[Current Display] Current conditions: 22┬░C and 75% humidity
+#[Statistics Display] Avg/Min/Max temperature: 25.0┬░C / 22┬░C / 28┬░C
+#[Forecast Display] Forecast: Watch out for cooler, rainy weather (Pressure: 1010hPa)
+#
+#============================================================
+#
+#=== Weather Station: New measurements received ===
+#Temperature: 38┬░C, Humidity: 85%, Pressure: 1008hPa
+#Subject: Notifying all observers...
+#[Current Display] Current conditions: 38┬░C and 85% humidity
+#[Statistics Display] Avg/Min/Max temperature: 28.2┬░C / 22┬░C / 38┬░C
+#[Forecast Display] Forecast: Watch out for cooler, rainy weather (Pressure: 1008hPa)
+#[Alert System]   HIGH TEMPERATURE ALERT!, HIGH HUMIDITY ALERT!
+#
+#============================================================
+#
+#--- Removing Alert System ---
+#Subject: Observer detached (remaining: 3)
+#
+#============================================================
+#
+#=== Weather Station: New measurements received ===
+#Temperature: 20┬░C, Humidity: 60%, Pressure: 1012hPa
+#Subject: Notifying all observers...
+#[Current Display] Current conditions: 20┬░C and 60% humidity
+#[Statistics Display] Avg/Min/Max temperature: 26.6┬░C / 20┬░C / 38┬░C
+#[Forecast Display] Forecast: Improving weather on the way! (Pressure: 1012hPa)
+#
+#=== Demonstration Complete ===
+#
+
+#Key Benefits Demonstrated:
+#
+#Loose Coupling: WeatherStation doesn't know about specific display types
+#Dynamic Subscription: Observers can attach/detach at runtime
+#Automatic Updates: All observers get notified automatically when data changes
+#Multiple Observers: Different displays show different aspects of the same data
+#No Polling: Displays don't need to constantly check for updates
+#
+#Real-World Applications:
+#
+#Event handling systems
+#MVC architecture (Model notifies Views)
+#Stock market tickers
+#Social media notifications
+#Pub/sub messaging systems
+ 
