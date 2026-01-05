@@ -1,0 +1,105 @@
+#=== E-Commerce Payment System (Strategy Pattern) ===
+#
+#--- Scenario 1: Credit Card Payment ---
+#Cart: Added 'Laptop' - $999.99
+#Cart: Added 'Mouse' - $29.99
+#Cart: Added 'Keyboard' - $79.99
+#Cart: Payment method set to CreditCard
+#
+#=== Checkout Summary ===
+#  Laptop: $999.99
+#  Mouse: $29.99
+#  Keyboard: $79.99
+#  Total: $1109.97
+#========================
+#
+#CreditCard: Validating card details...
+#CreditCard: Card validation successful
+#CreditCard: Processing payment of $1109.97
+#CreditCard: Card: ****-****-****-3456
+#CreditCard: Payment successful!
+#
+#============================================================
+#
+#--- Scenario 2: PayPal Payment ---
+#Cart: Cart cleared
+#Cart: Added 'Headphones' - $149.99
+#Cart: Added 'USB Cable' - $12.99
+#Cart: Payment method set to PayPal
+#
+#=== Checkout Summary ===
+#  Headphones: $149.99
+#  USB Cable: $12.99
+#  Total: $162.98
+#========================
+#
+#PayPal: Authenticating account...
+#PayPal: Authentication successful
+#PayPal: Processing payment of $162.98
+#PayPal: Account: user@example.com
+#PayPal: Payment successful!
+#
+#============================================================
+#
+#--- Scenario 3: Cryptocurrency Payment ---
+#Cart: Cart cleared
+#Cart: Added 'Graphics Card' - $599.99
+#Cart: Payment method set to Crypto
+#
+#=== Checkout Summary ===
+#  Graphics Card: $599.99
+#  Total: $599.99
+#========================
+#
+#Crypto: Validating wallet address...
+#Crypto: Wallet validation successful
+#Crypto: Processing payment of $599.99 in Bitcoin
+#Crypto: Wallet: 1A1zP1...DivfNa
+#Crypto: Confirming blockchain transaction...
+#Crypto: Payment successful!
+#
+#============================================================
+#
+#--- Scenario 4: Bank Transfer Payment ---
+#Cart: Cart cleared
+#Cart: Added 'Monitor' - $349.99
+#Cart: Added 'Webcam' - $89.99
+#Cart: Payment method set to BankTransfer
+#
+#=== Checkout Summary ===
+#  Monitor: $349.99
+#  Webcam: $89.99
+#  Total: $439.98
+#========================
+#
+#BankTransfer: Validating bank account...
+#BankTransfer: Account validation successful
+#BankTransfer: Processing payment of $439.98
+#BankTransfer: Bank: First National Bank
+#BankTransfer: Account: ****5678
+#BankTransfer: Processing ACH transfer (2-3 business days)...
+#BankTransfer: Payment initiated successfully!
+#
+#============================================================
+#
+#--- Scenario 5: Invalid Credit Card ---
+#Cart: Cart cleared
+#Cart: Added 'Speaker' - $199.99
+#Cart: Payment method set to CreditCard
+#
+#=== Checkout Summary ===
+#  Speaker: $199.99
+#  Total: $199.99
+#========================
+#
+#CreditCard: Validating card details...
+#CreditCard: Invalid card number length
+#CreditCard: Payment failed - validation error
+#
+#============================================================
+#
+#--- Scenario 6: No Payment Method Selected ---
+#Cart: Cart cleared
+#Cart: Added 'Phone Case' - $24.99
+#Cart: Payment method set to
+#Cart: ERROR - No payment method selected!
