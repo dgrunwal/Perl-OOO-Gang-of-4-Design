@@ -1,0 +1,377 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# State Interface
+package State;
+
+sub new {
+    my $class = shift;
+    return bless {}, $class;
+}
+
+sub insert_coin {
+    my ($self, $machine) = @_;
+    die "Must override insert_coin method";
+}
+
+sub eject_coin {
+    my ($self, $machine) = @_;
+    die "Must override eject_coin method";
+}
+
+sub select_product {
+    my ($self, $machine) = @_;
+    die "Must override select_product method";
+}
+
+sub dispense {
+    my ($self, $machine) = @_;
+    die "Must override dispense method";
+}
+
+# Concrete State - No Coin Inserted
+package NoCoinState;
+our @ISA = ('State');
+
+sub insert_coin {
+    my ($self, $machine) = @_;
+    print "NoCoinState: Coin inserted\n";
+    $machine->set_state($machine->get_has_coin_state());
+}
+
+sub eject_coin {
+    my ($self, $machine) = @_;
+    print "NoCoinState: No coin to eject\n";
+}
+
+sub select_product {
+    my ($self, $machine) = @_;
+    print "NoCoinState: Insert coin first\n";
+}
+
+sub dispense {
+    my ($self, $machine) = @_;
+    print "NoCoinState: Payment required\n";
+}
+
+# Concrete State - Has Coin
+package HasCoinState;
+our @ISA = ('State');
+
+sub insert_coin {
+    my ($self, $machine) = @_;
+    print "HasCoinState: Coin already inserted\n";
+}
+
+sub eject_coin {
+    my ($self, $machine) = @_;
+    print "HasCoinState: Coin ejected\n";
+    $machine->set_state($machine->get_no_coin_state());
+}
+
+sub select_product {
+    my ($self, $machine) = @_;
+    print "HasCoinState: Product selected\n";
+    $machine->set_state($machine->get_dispensing_state());
+}
+
+sub dispense {
+    my ($self, $machine) = @_;
+    print "HasCoinState: Select a product first\n";
+}
+
+# Concrete State - Dispensing Product
+package DispensingState;
+our @ISA = ('State');
+
+sub insert_coin {
+    my ($self, $machine) = @_;
+    print "DispensingState: Please wait, dispensing product\n";
+}
+
+sub eject_coin {
+    my ($self, $machine) = @_;
+    print "DispensingState: Cannot eject, already dispensing\n";
+}
+
+sub select_product {
+    my ($self, $machine) = @_;
+    print "DispensingState: Already dispensing\n";
+}
+
+sub dispense {
+    my ($self, $machine) = @_;
+    print "DispensingState: Dispensing product...\n";
+    
+    if ($machine->get_stock() > 0) {
+        $machine->decrease_stock();
+        print "DispensingState: Product dispensed! Remaining stock: " . $machine->get_stock() . "\n";
+        
+        if ($machine->get_stock() > 0) {
+            $machine->set_state($machine->get_no_coin_state());
+        } else {
+            print "DispensingState: Machine is now out of stock\n";
+            $machine->set_state($machine->get_out_of_stock_state());
+        }
+    } else {
+        print "DispensingState: Out of stock!\n";
+        $machine->set_state($machine->get_out_of_stock_state());
+    }
+}
+
+# Concrete State - Out of Stock
+package OutOfStockState;
+our @ISA = ('State');
+
+sub insert_coin {
+    my ($self, $machine) = @_;
+    print "OutOfStockState: Machine is out of stock, coin ejected\n";
+}
+
+sub eject_coin {
+    my ($self, $machine) = @_;
+    print "OutOfStockState: No coin to eject\n";
+}
+
+sub select_product {
+    my ($self, $machine) = @_;
+    print "OutOfStockState: Machine is out of stock\n";
+}
+
+sub dispense {
+    my ($self, $machine) = @_;
+    print "OutOfStockState: Cannot dispense, out of stock\n";
+}
+
+# Context - Vending Machine
+package VendingMachine;
+
+sub new {
+    my ($class, $initial_stock) = @_;
+    
+    my $self = bless {
+        stock => $initial_stock || 5,
+        no_coin_state => NoCoinState->new(),
+        has_coin_state => HasCoinState->new(),
+        dispensing_state => DispensingState->new(),
+        out_of_stock_state => OutOfStockState->new(),
+        current_state => undef
+    }, $class;
+    
+    # Set initial state
+    if ($self->{stock} > 0) {
+        $self->{current_state} = $self->{no_coin_state};
+    } else {
+        $self->{current_state} = $self->{out_of_stock_state};
+    }
+    
+    return $self;
+}
+
+# State management
+sub set_state {
+    my ($self, $state) = @_;
+    $self->{current_state} = $state;
+}
+
+sub get_no_coin_state {
+    my $self = shift;
+    return $self->{no_coin_state};
+}
+
+sub get_has_coin_state {
+    my $self = shift;
+    return $self->{has_coin_state};
+}
+
+sub get_dispensing_state {
+    my $self = shift;
+    return $self->{dispensing_state};
+}
+
+sub get_out_of_stock_state {
+    my $self = shift;
+    return $self->{out_of_stock_state};
+}
+
+# Stock management
+sub get_stock {
+    my $self = shift;
+    return $self->{stock};
+}
+
+sub decrease_stock {
+    my $self = shift;
+    $self->{stock}-- if $self->{stock} > 0;
+}
+
+sub refill {
+    my ($self, $amount) = @_;
+    $self->{stock} += $amount;
+    print "VendingMachine: Refilled with $amount items. Total stock: $self->{stock}\n";
+    $self->set_state($self->{no_coin_state}) if $self->{stock} > 0;
+}
+
+# Public interface - delegates to current state
+sub insert_coin {
+    my $self = shift;
+    $self->{current_state}->insert_coin($self);
+}
+
+sub eject_coin {
+    my $self = shift;
+    $self->{current_state}->eject_coin($self);
+}
+
+sub select_product {
+    my $self = shift;
+    $self->{current_state}->select_product($self);
+}
+
+sub dispense {
+    my $self = shift;
+    $self->{current_state}->dispense($self);
+}
+
+sub display_status {
+    my $self = shift;
+    my $state_name = ref($self->{current_state});
+    $state_name =~ s/^.*:://;  # Remove package prefix
+    print "\n--- Machine Status ---\n";
+    print "Current State: $state_name\n";
+    print "Stock Remaining: $self->{stock}\n";
+    print "---------------------\n\n";
+}
+
+# Main Program - Demonstrating State Pattern
+package main;
+
+print "=== Vending Machine State Pattern Demo ===\n\n";
+
+# Create vending machine with 3 items in stock
+my $machine = VendingMachine->new(3);
+$machine->display_status();
+
+# Scenario 1: Successful purchase
+print "--- Scenario 1: Normal Purchase ---\n";
+$machine->insert_coin();
+$machine->select_product();
+$machine->dispense();
+$machine->display_status();
+
+# Scenario 2: Try to insert coin while dispensing
+print "--- Scenario 2: Invalid Actions ---\n";
+$machine->insert_coin();
+$machine->insert_coin();  # Try to insert again
+$machine->eject_coin();
+$machine->display_status();
+
+# Scenario 3: Eject coin before purchase
+print "--- Scenario 3: Change Mind ---\n";
+$machine->insert_coin();
+$machine->eject_coin();
+$machine->select_product();  # Try without coin
+$machine->display_status();
+
+# Scenario 4: Purchase until out of stock
+print "--- Scenario 4: Empty Machine ---\n";
+$machine->insert_coin();
+$machine->select_product();
+$machine->dispense();
+
+$machine->insert_coin();
+$machine->select_product();
+$machine->dispense();
+
+# Try to buy when out of stock
+$machine->insert_coin();
+$machine->display_status();
+
+# Scenario 5: Refill machine
+print "--- Scenario 5: Refill and Continue ---\n";
+$machine->refill(2);
+$machine->display_status();
+
+$machine->insert_coin();
+$machine->select_product();
+$machine->dispense();
+$machine->display_status();
+
+print "=== Demo Complete ===\n";
+
+# === Vending Machine State Pattern Demo ===
+#
+#
+#--- Machine Status ---
+#Current State: NoCoinState
+#Stock Remaining: 3
+#---------------------
+#
+#--- Scenario 1: Normal Purchase ---
+#NoCoinState: Coin inserted
+#HasCoinState: Product selected
+#DispensingState: Dispensing product...
+#DispensingState: Product dispensed! Remaining stock: 2
+#
+#--- Machine Status ---
+#Current State: NoCoinState
+#Stock Remaining: 2
+#---------------------
+#
+#--- Scenario 2: Invalid Actions ---
+#NoCoinState: Coin inserted
+#HasCoinState: Coin already inserted
+#HasCoinState: Coin ejected
+#
+#--- Machine Status ---
+#Current State: NoCoinState
+#Stock Remaining: 2
+#---------------------
+#
+#--- Scenario 3: Change Mind ---
+#NoCoinState: Coin inserted
+#HasCoinState: Coin ejected
+#NoCoinState: Insert coin first
+#
+#--- Machine Status ---
+#Current State: NoCoinState
+#Stock Remaining: 2
+#---------------------
+#
+#--- Scenario 4: Empty Machine ---
+#NoCoinState: Coin inserted
+#HasCoinState: Product selected
+#DispensingState: Dispensing product...
+#DispensingState: Product dispensed! Remaining stock: 1
+#NoCoinState: Coin inserted
+#HasCoinState: Product selected
+#DispensingState: Dispensing product...
+#DispensingState: Product dispensed! Remaining stock: 0
+#DispensingState: Machine is now out of stock
+#OutOfStockState: Machine is out of stock, coin ejected
+#
+#--- Machine Status ---
+#Current State: OutOfStockState
+#Stock Remaining: 0
+#---------------------
+#
+#--- Scenario 5: Refill and Continue ---
+#VendingMachine: Refilled with 2 items. Total stock: 2
+#
+#--- Machine Status ---
+#Current State: NoCoinState
+#Stock Remaining: 2
+#---------------------
+#
+#NoCoinState: Coin inserted
+#HasCoinState: Product selected
+#DispensingState: Dispensing product...
+#DispensingState: Product dispensed! Remaining stock: 1
+#
+#--- Machine Status ---
+#Current State: NoCoinState
+#Stock Remaining: 1
+#---------------------
+#
+#=== Demo Complete ===
