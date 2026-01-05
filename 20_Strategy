@@ -1,3 +1,345 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# Strategy Interface
+package PaymentStrategy;
+
+sub new {
+    my $class = shift;
+    return bless {}, $class;
+}
+
+sub pay {
+    my ($self, $amount) = @_;
+    die "Must override pay method";
+}
+
+sub validate {
+    my $self = shift;
+    die "Must override validate method";
+}
+
+# Concrete Strategy - Credit Card Payment
+package CreditCardStrategy;
+our @ISA = ('PaymentStrategy');
+
+sub new {
+    my ($class, $card_number, $cvv, $expiry) = @_;
+    my $self = $class->SUPER::new();
+    $self->{card_number} = $card_number;
+    $self->{cvv} = $cvv;
+    $self->{expiry} = $expiry;
+    return $self;
+}
+
+sub validate {
+    my $self = shift;
+    print "CreditCard: Validating card details...\n";
+    
+    # Simple validation
+    if (length($self->{card_number}) != 16) {
+        print "CreditCard: Invalid card number length\n";
+        return 0;
+    }
+    
+    if (length($self->{cvv}) != 3) {
+        print "CreditCard: Invalid CVV\n";
+        return 0;
+    }
+    
+    print "CreditCard: Card validation successful\n";
+    return 1;
+}
+
+sub pay {
+    my ($self, $amount) = @_;
+    
+    if (!$self->validate()) {
+        print "CreditCard: Payment failed - validation error\n";
+        return 0;
+    }
+    
+    my $masked = "****-****-****-" . substr($self->{card_number}, -4);
+    print "CreditCard: Processing payment of \$$amount\n";
+    print "CreditCard: Card: $masked\n";
+    print "CreditCard: Payment successful!\n";
+    return 1;
+}
+
+# Concrete Strategy - PayPal Payment
+package PayPalStrategy;
+our @ISA = ('PaymentStrategy');
+
+sub new {
+    my ($class, $email, $password) = @_;
+    my $self = $class->SUPER::new();
+    $self->{email} = $email;
+    $self->{password} = $password;
+    return $self;
+}
+
+sub validate {
+    my $self = shift;
+    print "PayPal: Authenticating account...\n";
+    
+    if ($self->{email} !~ /\@/) {
+        print "PayPal: Invalid email address\n";
+        return 0;
+    }
+    
+    if (length($self->{password}) < 6) {
+        print "PayPal: Password too short\n";
+        return 0;
+    }
+    
+    print "PayPal: Authentication successful\n";
+    return 1;
+}
+
+sub pay {
+    my ($self, $amount) = @_;
+    
+    if (!$self->validate()) {
+        print "PayPal: Payment failed - authentication error\n";
+        return 0;
+    }
+    
+    print "PayPal: Processing payment of \$$amount\n";
+    print "PayPal: Account: $self->{email}\n";
+    print "PayPal: Payment successful!\n";
+    return 1;
+}
+
+# Concrete Strategy - Cryptocurrency Payment
+package CryptoStrategy;
+our @ISA = ('PaymentStrategy');
+
+sub new {
+    my ($class, $wallet_address, $crypto_type) = @_;
+    my $self = $class->SUPER::new();
+    $self->{wallet_address} = $wallet_address;
+    $self->{crypto_type} = $crypto_type || 'Bitcoin';
+    return $self;
+}
+
+sub validate {
+    my $self = shift;
+    print "Crypto: Validating wallet address...\n";
+    
+    if (length($self->{wallet_address}) < 26) {
+        print "Crypto: Invalid wallet address\n";
+        return 0;
+    }
+    
+    print "Crypto: Wallet validation successful\n";
+    return 1;
+}
+
+sub pay {
+    my ($self, $amount) = @_;
+    
+    if (!$self->validate()) {
+        print "Crypto: Payment failed - validation error\n";
+        return 0;
+    }
+    
+    my $masked = substr($self->{wallet_address}, 0, 6) . "..." . substr($self->{wallet_address}, -6);
+    print "Crypto: Processing payment of \$$amount in $self->{crypto_type}\n";
+    print "Crypto: Wallet: $masked\n";
+    print "Crypto: Confirming blockchain transaction...\n";
+    print "Crypto: Payment successful!\n";
+    return 1;
+}
+
+# Concrete Strategy - Bank Transfer Payment
+package BankTransferStrategy;
+our @ISA = ('PaymentStrategy');
+
+sub new {
+    my ($class, $account_number, $routing_number, $bank_name) = @_;
+    my $self = $class->SUPER::new();
+    $self->{account_number} = $account_number;
+    $self->{routing_number} = $routing_number;
+    $self->{bank_name} = $bank_name;
+    return $self;
+}
+
+sub validate {
+    my $self = shift;
+    print "BankTransfer: Validating bank account...\n";
+    
+    if (length($self->{account_number}) < 8) {
+        print "BankTransfer: Invalid account number\n";
+        return 0;
+    }
+    
+    if (length($self->{routing_number}) != 9) {
+        print "BankTransfer: Invalid routing number\n";
+        return 0;
+    }
+    
+    print "BankTransfer: Account validation successful\n";
+    return 1;
+}
+
+sub pay {
+    my ($self, $amount) = @_;
+    
+    if (!$self->validate()) {
+        print "BankTransfer: Payment failed - validation error\n";
+        return 0;
+    }
+    
+    my $masked = "****" . substr($self->{account_number}, -4);
+    print "BankTransfer: Processing payment of \$$amount\n";
+    print "BankTransfer: Bank: $self->{bank_name}\n";
+    print "BankTransfer: Account: $masked\n";
+    print "BankTransfer: Processing ACH transfer (2-3 business days)...\n";
+    print "BankTransfer: Payment initiated successfully!\n";
+    return 1;
+}
+
+# Context - Shopping Cart / Payment Processor
+package ShoppingCart;
+
+sub new {
+    my $class = shift;
+    return bless {
+        items => [],
+        payment_strategy => undef
+    }, $class;
+}
+
+sub add_item {
+    my ($self, $name, $price) = @_;
+    push @{$self->{items}}, { name => $name, price => $price };
+    print "Cart: Added '$name' - \$$price\n";
+}
+
+sub calculate_total {
+    my $self = shift;
+    my $total = 0;
+    foreach my $item (@{$self->{items}}) {
+        $total += $item->{price};
+    }
+    return $total;
+}
+
+sub set_payment_strategy {
+    my ($self, $strategy) = @_;
+    $self->{payment_strategy} = $strategy;
+    my $strategy_name = ref($strategy);
+    $strategy_name =~ s/Strategy$//;
+    print "Cart: Payment method set to $strategy_name\n";
+}
+
+sub checkout {
+    my $self = shift;
+    
+    if (!$self->{payment_strategy}) {
+        print "Cart: ERROR - No payment method selected!\n";
+        return 0;
+    }
+    
+    if (scalar @{$self->{items}} == 0) {
+        print "Cart: ERROR - Cart is empty!\n";
+        return 0;
+    }
+    
+    my $total = $self->calculate_total();
+    
+    print "\n=== Checkout Summary ===\n";
+    foreach my $item (@{$self->{items}}) {
+        print "  $item->{name}: \$$item->{price}\n";
+    }
+    print "  Total: \$$total\n";
+    print "========================\n\n";
+    
+    return $self->{payment_strategy}->pay($total);
+}
+
+sub clear {
+    my $self = shift;
+    $self->{items} = [];
+    print "Cart: Cart cleared\n";
+}
+
+# Main Program - Demonstrating Strategy Pattern
+package main;
+
+print "=== E-Commerce Payment System (Strategy Pattern) ===\n\n";
+
+# Create shopping cart
+my $cart = ShoppingCart->new();
+
+# Scenario 1: Pay with Credit Card
+print "--- Scenario 1: Credit Card Payment ---\n";
+$cart->add_item("Laptop", 999.99);
+$cart->add_item("Mouse", 29.99);
+$cart->add_item("Keyboard", 79.99);
+
+my $credit_card = CreditCardStrategy->new("1234567890123456", "123", "12/25");
+$cart->set_payment_strategy($credit_card);
+$cart->checkout();
+
+print "\n" . "=" x 60 . "\n\n";
+
+# Scenario 2: Pay with PayPal
+print "--- Scenario 2: PayPal Payment ---\n";
+$cart->clear();
+$cart->add_item("Headphones", 149.99);
+$cart->add_item("USB Cable", 12.99);
+
+my $paypal = PayPalStrategy->new("user\@example.com", "securepass123");
+$cart->set_payment_strategy($paypal);
+$cart->checkout();
+
+print "\n" . "=" x 60 . "\n\n";
+
+# Scenario 3: Pay with Cryptocurrency
+print "--- Scenario 3: Cryptocurrency Payment ---\n";
+$cart->clear();
+$cart->add_item("Graphics Card", 599.99);
+
+my $crypto = CryptoStrategy->new("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "Bitcoin");
+$cart->set_payment_strategy($crypto);
+$cart->checkout();
+
+print "\n" . "=" x 60 . "\n\n";
+
+# Scenario 4: Pay with Bank Transfer
+print "--- Scenario 4: Bank Transfer Payment ---\n";
+$cart->clear();
+$cart->add_item("Monitor", 349.99);
+$cart->add_item("Webcam", 89.99);
+
+my $bank = BankTransferStrategy->new("12345678", "123456789", "First National Bank");
+$cart->set_payment_strategy($bank);
+$cart->checkout();
+
+print "\n" . "=" x 60 . "\n\n";
+
+# Scenario 5: Invalid Payment Method
+print "--- Scenario 5: Invalid Credit Card ---\n";
+$cart->clear();
+$cart->add_item("Speaker", 199.99);
+
+my $invalid_card = CreditCardStrategy->new("123", "12", "12/25");  # Invalid card
+$cart->set_payment_strategy($invalid_card);
+$cart->checkout();
+
+print "\n" . "=" x 60 . "\n\n";
+
+# Scenario 6: No Payment Method
+print "--- Scenario 6: No Payment Method Selected ---\n";
+$cart->clear();
+$cart->add_item("Phone Case", 24.99);
+$cart->set_payment_strategy(undef);  # Remove payment method
+$cart->checkout();
+
+print "\n=== Demo Complete ===\n";
+
 #=== E-Commerce Payment System (Strategy Pattern) ===
 #
 #--- Scenario 1: Credit Card Payment ---
@@ -103,3 +445,5 @@
 #Cart: Added 'Phone Case' - $24.99
 #Cart: Payment method set to
 #Cart: ERROR - No payment method selected!
+ 
+ 
