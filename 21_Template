@@ -1,0 +1,551 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+ 
+
+# Abstract Class - Data Processor Template
+package DataProcessor;
+
+sub new {
+    my $class = shift;
+    return bless {
+        data => undef,
+        processed_data => undef
+    }, $class;
+}
+
+# Template Method - Defines the algorithm skeleton
+sub process {
+    my ($self, $input_file) = @_;
+    
+    print "\n" . "=" x 60 . "\n";
+    print "Starting data processing pipeline...\n";
+    print "=" x 60 . "\n\n";
+    
+    # Step 1: Read data (concrete)
+    $self->{data} = $self->read_data($input_file);
+    return unless $self->{data};
+    
+    # Step 2: Validate (hook - optional)
+    if (!$self->validate_data()) {
+        print "ERROR: Data validation failed!\n";
+        return;
+    }
+    
+    # Step 3: Transform (abstract - must override)
+    $self->{processed_data} = $self->transform_data($self->{data});
+    
+    # Step 4: Filter (hook - optional)
+    if ($self->should_filter()) {
+        $self->{processed_data} = $self->filter_data($self->{processed_data});
+    }
+    
+    # Step 5: Format output (abstract - must override)
+    my $output = $self->format_output($self->{processed_data});
+    
+    # Step 6: Save results (concrete)
+    $self->save_results($output);
+    
+    # Step 7: Cleanup (hook - optional)
+    $self->cleanup();
+    
+    print "\n" . "=" x 60 . "\n";
+    print "Processing pipeline completed successfully!\n";
+    print "=" x 60 . "\n";
+}
+
+# Concrete method - Same for all subclasses
+sub read_data {
+    my ($self, $input_file) = @_;
+    print "[READ] Reading data from: $input_file\n";
+    
+    # Simulate reading data
+    my @data = (
+        "apple,5,1.20",
+        "banana,10,0.50",
+        "orange,8,0.80",
+        "grape,15,2.50",
+        "mango,3,3.00"
+    );
+    
+    print "[READ] Loaded " . scalar(@data) . " records\n\n";
+    return \@data;
+}
+
+# Hook method - Default implementation (can be overridden)
+sub validate_data {
+    my $self = shift;
+    print "[VALIDATE] Using default validation\n";
+    return scalar(@{$self->{data}}) > 0;
+}
+
+# Abstract method - Must be overridden
+sub transform_data {
+    my $self = shift;
+    die "ERROR: transform_data() must be implemented by subclass!";
+}
+
+# Hook method - Controls optional filtering step
+sub should_filter {
+    return 0;  # Default: no filtering
+}
+
+# Hook method - Optional filtering
+sub filter_data {
+    my ($self, $data) = @_;
+    print "[FILTER] No filtering applied (default)\n";
+    return $data;
+}
+
+# Abstract method - Must be overridden
+sub format_output {
+    my $self = shift;
+    die "ERROR: format_output() must be implemented by subclass!";
+}
+
+# Concrete method - Same for all subclasses
+sub save_results {
+    my ($self, $output) = @_;
+    print "\n[SAVE] Saving results...\n";
+    print $output;
+    print "[SAVE] Results saved successfully\n\n";
+}
+
+# Hook method - Optional cleanup
+sub cleanup {
+    my $self = shift;
+    print "[CLEANUP] No cleanup needed (default)\n";
+}
+
+# Concrete Subclass 1 - CSV Report Generator
+package CSVReportProcessor;
+our @ISA = ('DataProcessor');
+
+sub new {
+    my $class = shift;
+    my $self = $class->SUPER::new();
+    $self->{total_value} = 0;
+    return $self;
+}
+
+sub validate_data {
+    my $self = shift;
+    print "[VALIDATE] CSV validation - checking format\n";
+    
+    foreach my $row (@{$self->{data}}) {
+        if ($row !~ /^[^,]+,\d+,[\d.]+$/) {
+            print "[VALIDATE] Invalid CSV format detected\n";
+            return 0;
+        }
+    }
+    
+    print "[VALIDATE] All rows valid\n\n";
+    return 1;
+}
+
+sub transform_data {
+    my ($self, $data) = @_;
+    print "[TRANSFORM] CSV - Parsing and calculating totals\n";
+    
+    my @transformed;
+    foreach my $row (@$data) {
+        my ($product, $quantity, $price) = split /,/, $row;
+        my $total = $quantity * $price;
+        $self->{total_value} += $total;
+        
+        push @transformed, {
+            product => $product,
+            quantity => $quantity,
+            price => $price,
+            total => $total
+        };
+    }
+    
+    print "[TRANSFORM] Processed " . scalar(@transformed) . " items\n\n";
+    return \@transformed;
+}
+
+sub format_output {
+    my ($self, $data) = @_;
+    print "[FORMAT] CSV - Generating report\n\n";
+    
+    my $output = "Product,Quantity,Price,Total\n";
+    foreach my $item (@$data) {
+        $output .= sprintf("%s,%d,%.2f,%.2f\n",
+            $item->{product},
+            $item->{quantity},
+            $item->{price},
+            $item->{total}
+        );
+    }
+    $output .= sprintf("\nGrand Total:,,,%.2f\n", $self->{total_value});
+    
+    return $output;
+}
+
+# Concrete Subclass 2 - JSON API Processor with Filtering
+package JSONAPIProcessor;
+our @ISA = ('DataProcessor');
+
+sub new {
+    my $class = shift;
+    my $self = $class->SUPER::new();
+    $self->{min_quantity} = 5;
+    return $self;
+}
+
+sub validate_data {
+    my $self = shift;
+    print "[VALIDATE] JSON API - Checking data integrity\n";
+    print "[VALIDATE] Validation passed\n\n";
+    return 1;
+}
+
+sub transform_data {
+    my ($self, $data) = @_;
+    print "[TRANSFORM] JSON - Converting to API format\n";
+    
+    my @transformed;
+    foreach my $row (@$data) {
+        my ($product, $quantity, $price) = split /,/, $row;
+        
+        push @transformed, {
+            id => scalar(@transformed) + 1,
+            name => $product,
+            stock => int($quantity),
+            price => sprintf("%.2f", $price),
+            available => int($quantity) > 0 ? 'true' : 'false'
+        };
+    }
+    
+    print "[TRANSFORM] Converted " . scalar(@transformed) . " records\n\n";
+    return \@transformed;
+}
+
+# Override hook - Enable filtering
+sub should_filter {
+    return 1;
+}
+
+sub filter_data {
+    my ($self, $data) = @_;
+    print "[FILTER] Filtering items with quantity >= $self->{min_quantity}\n";
+    
+    my @filtered = grep { $_->{stock} >= $self->{min_quantity} } @$data;
+    
+    print "[FILTER] Filtered: " . scalar(@$data) . " -> " . scalar(@filtered) . " items\n\n";
+    return \@filtered;
+}
+
+sub format_output {
+    my ($self, $data) = @_;
+    print "[FORMAT] JSON - Creating API response\n\n";
+    
+    my $output = "{\n  \"status\": \"success\",\n  \"count\": " . scalar(@$data) . ",\n  \"products\": [\n";
+    
+    for (my $i = 0; $i < @$data; $i++) {
+        my $item = $data->[$i];
+        $output .= "    {\n";
+        $output .= "      \"id\": $item->{id},\n";
+        $output .= "      \"name\": \"$item->{name}\",\n";
+        $output .= "      \"stock\": $item->{stock},\n";
+        $output .= "      \"price\": \"$item->{price}\",\n";
+        $output .= "      \"available\": $item->{available}\n";
+        $output .= "    }" . ($i < @$data - 1 ? "," : "") . "\n";
+    }
+    
+    $output .= "  ]\n}\n";
+    return $output;
+}
+
+sub cleanup {
+    my $self = shift;
+    print "[CLEANUP] JSON - Clearing temporary data\n";
+    $self->{data} = undef;
+    $self->{processed_data} = undef;
+}
+
+# Concrete Subclass 3 - HTML Table Generator
+package HTMLTableProcessor;
+our @ISA = ('DataProcessor');
+
+sub transform_data {
+    my ($self, $data) = @_;
+    print "[TRANSFORM] HTML - Structuring data for display\n";
+    
+    my @transformed;
+    foreach my $row (@$data) {
+        my ($product, $quantity, $price) = split /,/, $row;
+        my $total = $quantity * $price;
+        my $status = $quantity > 10 ? "In Stock" : ($quantity > 0 ? "Low Stock" : "Out of Stock");
+        
+        push @transformed, {
+            product => $product,
+            quantity => $quantity,
+            price => sprintf("%.2f", $price),
+            total => sprintf("%.2f", $total),
+            status => $status
+        };
+    }
+    
+    print "[TRANSFORM] Structured " . scalar(@transformed) . " rows\n\n";
+    return \@transformed;
+}
+
+sub format_output {
+    my ($self, $data) = @_;
+    print "[FORMAT] HTML - Generating table\n\n";
+    
+    my $output = "<table border='1'>\n";
+    $output .= "  <thead>\n";
+    $output .= "    <tr><th>Product</th><th>Quantity</th><th>Price</th><th>Total</th><th>Status</th></tr>\n";
+    $output .= "  </thead>\n";
+    $output .= "  <tbody>\n";
+    
+    foreach my $item (@$data) {
+        $output .= "    <tr>\n";
+        $output .= "      <td>$item->{product}</td>\n";
+        $output .= "      <td>$item->{quantity}</td>\n";
+        $output .= "      <td>\$$item->{price}</td>\n";
+        $output .= "      <td>\$$item->{total}</td>\n";
+        $output .= "      <td>$item->{status}</td>\n";
+        $output .= "    </tr>\n";
+    }
+    
+    $output .= "  </tbody>\n";
+    $output .= "</table>\n";
+    
+    return $output;
+}
+
+# Main Program - Demonstrating Template Method Pattern
+package main;
+
+print "=" x 60 . "\n";
+print "   DATA PROCESSING FRAMEWORK - TEMPLATE METHOD PATTERN\n";
+print "=" x 60 . "\n";
+
+# Scenario 1: CSV Report
+print "\n### SCENARIO 1: CSV Report Generation ###\n";
+my $csv_processor = CSVReportProcessor->new();
+$csv_processor->process("sales_data.csv");
+
+# Scenario 2: JSON API with Filtering
+print "\n\n### SCENARIO 2: JSON API Response (with filtering) ###\n";
+my $json_processor = JSONAPIProcessor->new();
+$json_processor->process("inventory_data.csv");
+
+# Scenario 3: HTML Table
+print "\n\n### SCENARIO 3: HTML Table Generation ###\n";
+my $html_processor = HTMLTableProcessor->new();
+$html_processor->process("products.csv");
+
+print "\n\n" . "=" x 60 . "\n";
+print "   ALL PROCESSING SCENARIOS COMPLETED\n";
+print "=" x 60 . "\n";
+
+#============================================================
+#   DATA PROCESSING FRAMEWORK - TEMPLATE METHOD PATTERN
+#============================================================
+#
+#### SCENARIO 1: CSV Report Generation ###
+#
+#============================================================
+#Starting data processing pipeline...
+#============================================================
+#
+#[READ] Reading data from: sales_data.csv
+#[READ] Loaded 5 records
+#
+#[VALIDATE] CSV validation - checking format
+#[VALIDATE] All rows valid
+#
+#[TRANSFORM] CSV - Parsing and calculating totals
+#[TRANSFORM] Processed 5 items
+#
+#[FORMAT] CSV - Generating report
+#
+#
+#[SAVE] Saving results...
+#Product,Quantity,Price,Total
+#apple,5,1.20,6.00
+#banana,10,0.50,5.00
+#orange,8,0.80,6.40
+#grape,15,2.50,37.50
+#mango,3,3.00,9.00
+#
+#Grand Total:,,,63.90
+#[SAVE] Results saved successfully
+#
+#[CLEANUP] No cleanup needed (default)
+#
+#============================================================
+#Processing pipeline completed successfully!
+#============================================================
+#
+#
+#### SCENARIO 2: JSON API Response (with filtering) ###
+#
+#============================================================
+#Starting data processing pipeline...
+#============================================================
+#
+#[READ] Reading data from: inventory_data.csv
+#[READ] Loaded 5 records
+#
+#[VALIDATE] JSON API - Checking data integrity
+#[VALIDATE] Validation passed
+#
+#[TRANSFORM] JSON - Converting to API format
+#[TRANSFORM] Converted 5 records
+#
+#[FILTER] Filtering items with quantity >= 5
+#[FILTER] Filtered: 5 -> 4 items
+#
+#[FORMAT] JSON - Creating API response
+#
+#
+#[SAVE] Saving results...
+#{
+#  "status": "success",
+#  "count": 4,
+#  "products": [
+#    {
+#      "id": 1,
+#      "name": "apple",
+#      "stock": 5,
+#      "price": "1.20",
+#      "available": true
+#    },
+#    {
+#      "id": 2,
+#      "name": "banana",
+#      "stock": 10,
+#      "price": "0.50",
+#      "available": true
+#    },
+#    {
+#      "id": 3,
+#      "name": "orange",
+#      "stock": 8,
+#      "price": "0.80",
+#      "available": true
+#    },
+#    {
+#      "id": 4,
+#      "name": "grape",
+#      "stock": 15,
+#      "price": "2.50",
+#      "available": true
+#    }
+#  ]
+#}
+#[SAVE] Results saved successfully
+#
+#[CLEANUP] JSON - Clearing temporary data
+#
+#============================================================
+#Processing pipeline completed successfully!
+#============================================================
+#
+#
+#### SCENARIO 3: HTML Table Generation ###
+#
+#============================================================
+#Starting data processing pipeline...
+#============================================================
+#
+#[READ] Reading data from: products.csv
+#[READ] Loaded 5 records
+#
+#[VALIDATE] Using default validation
+#[TRANSFORM] HTML - Structuring data for display
+#[TRANSFORM] Structured 5 rows
+#
+#[FORMAT] HTML - Generating table
+#
+#
+#[SAVE] Saving results...
+#<table border='1'>
+#  <thead>
+#    <tr><th>Product</th><th>Quantity</th><th>Price</th><th>Total</th><th>Status</th></tr>
+#  </thead>
+#  <tbody>
+#    <tr>
+#      <td>apple</td>
+#      <td>5</td>
+#      <td>$1.20</td>
+#      <td>$6.00</td>
+#      <td>Low Stock</td>
+#    </tr>
+#    <tr>
+#      <td>banana</td>
+#      <td>10</td>
+#      <td>$0.50</td>
+#      <td>$5.00</td>
+#      <td>Low Stock</td>
+#    </tr>
+#    <tr>
+#      <td>orange</td>
+#      <td>8</td>
+#      <td>$0.80</td>
+#      <td>$6.40</td>
+#      <td>Low Stock</td>
+#    </tr>
+#    <tr>
+#      <td>grape</td>
+#      <td>15</td>
+#      <td>$2.50</td>
+#      <td>$37.50</td>
+#      <td>In Stock</td>
+#    </tr>
+#    <tr>
+#      <td>mango</td>
+#      <td>3</td>
+#      <td>$3.00</td>
+#      <td>$9.00</td>
+#      <td>Low Stock</td>
+#    </tr>
+#  </tbody>
+#</table>
+#[SAVE] Results saved successfully
+#
+#[CLEANUP] No cleanup needed (default)
+#
+#============================================================
+#Processing pipeline completed successfully!
+#============================================================
+#
+#
+#============================================================
+#   ALL PROCESSING SCENARIOS COMPLETED
+#============================================================
+
+
+
+#Benefits 
+#
+#• Reduced Duplication: Reduces duplication by reusing the structure of the 
+#algorithm. 
+#• Standardised Process: It offers a standardised process with adaptable steps. 
+#• Controlled Extensibility: Subclasses are not able to violate core logic, which 
+#enforces controlled extensibility. 
+#• Clear Separation: It promotes a clear distinction between variant and invariant 
+#behaviour. 
+#
+#Related Patterns 
+#
+#• Strategy Pattern: The Strategy pattern allows for runtime substitution by 
+#encapsulating algorithms into distinct objects. 
+#• Factory Method: The factory method is frequently used to assign object creation 
+#within a template method. 
+#• Hook Methods: Subclasses may override optional steps in a template called 
+#hook methods.
+# 
+#Conclusion 
+#
+#When the order of operations is fixed but the specifics of each step should change, the 
+#Template Method Pattern works perfectly. It is widely used in frameworks, parsing 
+#pipelines, testing suites, and game engines because it is a simple way of enforcing 
+#structure while preserving customisation.
+ 
