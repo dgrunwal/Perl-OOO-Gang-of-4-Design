@@ -1,0 +1,560 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# Disable output buffering for Windows
+$| = 1;
+
+# Visitor Interface
+package Visitor;
+
+sub new {
+    my $class = shift;
+    return bless {}, $class;
+}
+
+sub visit_home {
+    my ($self, $home) = @_;
+    die "Must override visit_home method";
+}
+
+sub visit_car {
+    my ($self, $car) = @_;
+    die "Must override visit_car method";
+}
+
+sub visit_boat {
+    my ($self, $boat) = @_;
+    die "Must override visit_boat method";
+}
+
+# Element Interface - Insurable Item
+package InsurableItem;
+
+sub new {
+    my $class = shift;
+    return bless {}, $class;
+}
+
+sub accept {
+    my ($self, $visitor) = @_;
+    die "Must override accept method";
+}
+
+# Concrete Element - Home
+package Home;
+our @ISA = ('InsurableItem');
+
+sub new {
+    my ($class, $address, $square_feet, $year_built, $value) = @_;
+    my $self = $class->SUPER::new();
+    $self->{address} = $address;
+    $self->{square_feet} = $square_feet;
+    $self->{year_built} = $year_built;
+    $self->{value} = $value;
+    return $self;
+}
+
+sub accept {
+    my ($self, $visitor) = @_;
+    # Double dispatch - element calls visitor's specific method
+    return $visitor->visit_home($self);
+}
+
+sub get_address { return shift->{address}; }
+sub get_square_feet { return shift->{square_feet}; }
+sub get_year_built { return shift->{year_built}; }
+sub get_value { return shift->{value}; }
+
+# Concrete Element - Car
+package Car;
+our @ISA = ('InsurableItem');
+
+sub new {
+    my ($class, $make, $model, $year, $mileage, $value) = @_;
+    my $self = $class->SUPER::new();
+    $self->{make} = $make;
+    $self->{model} = $model;
+    $self->{year} = $year;
+    $self->{mileage} = $mileage;
+    $self->{value} = $value;
+    return $self;
+}
+
+sub accept {
+    my ($self, $visitor) = @_;
+    return $visitor->visit_car($self);
+}
+
+sub get_make { return shift->{make}; }
+sub get_model { return shift->{model}; }
+sub get_year { return shift->{year}; }
+sub get_mileage { return shift->{mileage}; }
+sub get_value { return shift->{value}; }
+
+# Concrete Element - Boat
+package Boat;
+our @ISA = ('InsurableItem');
+
+sub new {
+    my ($class, $name, $type, $length, $year, $value) = @_;
+    my $self = $class->SUPER::new();
+    $self->{name} = $name;
+    $self->{type} = $type;
+    $self->{length} = $length;
+    $self->{year} = $year;
+    $self->{value} = $value;
+    return $self;
+}
+
+sub accept {
+    my ($self, $visitor) = @_;
+    return $visitor->visit_boat($self);
+}
+
+sub get_name { return shift->{name}; }
+sub get_type { return shift->{type}; }
+sub get_length { return shift->{length}; }
+sub get_year { return shift->{year}; }
+sub get_value { return shift->{value}; }
+
+# Concrete Visitor - Insurance Premium Calculator
+package PremiumCalculator;
+our @ISA = ('Visitor');
+
+sub new {
+    my $class = shift;
+    my $self = $class->SUPER::new();
+    $self->{total_premium} = 0;
+    return $self;
+}
+
+sub visit_home {
+    my ($self, $home) = @_;
+    print "\n[Premium Calculator] Assessing Home\n";
+    print "  Address: " . $home->get_address() . "\n";
+    print "  Square Feet: " . $home->get_square_feet() . "\n";
+    print "  Year Built: " . $home->get_year_built() . "\n";
+    print "  Value: \$" . $home->get_value() . "\n";
+    
+    # Calculate premium based on home characteristics
+    my $base_rate = $home->get_value() * 0.005;
+    my $age = 2026 - $home->get_year_built();
+    my $age_factor = 1 + ($age / 100);
+    my $size_factor = 1 + ($home->get_square_feet() / 10000);
+    
+    my $premium = $base_rate * $age_factor * $size_factor;
+    $self->{total_premium} += $premium;
+    
+    printf "  Annual Premium: \$%.2f\n", $premium;
+    return $premium;
+}
+
+sub visit_car {
+    my ($self, $car) = @_;
+    print "\n[Premium Calculator] Assessing Car\n";
+    print "  Vehicle: " . $car->get_year() . " " . $car->get_make() . " " . $car->get_model() . "\n";
+    print "  Mileage: " . $car->get_mileage() . " miles\n";
+    print "  Value: \$" . $car->get_value() . "\n";
+    
+    # Calculate premium based on car characteristics
+    my $base_rate = $car->get_value() * 0.03;
+    my $age = 2026 - $car->get_year();
+    my $age_factor = 1 + ($age / 20);
+    my $mileage_factor = 1 + ($car->get_mileage() / 100000);
+    
+    my $premium = $base_rate * $age_factor * $mileage_factor;
+    $self->{total_premium} += $premium;
+    
+    printf "  Annual Premium: \$%.2f\n", $premium;
+    return $premium;
+}
+
+sub visit_boat {
+    my ($self, $boat) = @_;
+    print "\n[Premium Calculator] Assessing Boat\n";
+    print "  Name: " . $boat->get_name() . "\n";
+    print "  Type: " . $boat->get_type() . "\n";
+    print "  Length: " . $boat->get_length() . " feet\n";
+    print "  Year: " . $boat->get_year() . "\n";
+    print "  Value: \$" . $boat->get_value() . "\n";
+    
+    # Calculate premium based on boat characteristics
+    my $base_rate = $boat->get_value() * 0.02;
+    my $age = 2026 - $boat->get_year();
+    my $age_factor = 1 + ($age / 15);
+    my $size_factor = 1 + ($boat->get_length() / 50);
+    
+    my $premium = $base_rate * $age_factor * $size_factor;
+    $self->{total_premium} += $premium;
+    
+    printf "  Annual Premium: \$%.2f\n", $premium;
+    return $premium;
+}
+
+sub get_total_premium {
+    my $self = shift;
+    return $self->{total_premium};
+}
+
+# Concrete Visitor - Risk Assessor
+package RiskAssessor;
+our @ISA = ('Visitor');
+
+sub new {
+    my $class = shift;
+    my $self = $class->SUPER::new();
+    $self->{total_risk_score} = 0;
+    return $self;
+}
+
+sub visit_home {
+    my ($self, $home) = @_;
+    print "\n[Risk Assessor] Evaluating Home Risk\n";
+    print "  Property: " . $home->get_address() . "\n";
+    
+    my $age = 2026 - $home->get_year_built();
+    my $risk_score = 0;
+    
+    # Age-based risk
+    if ($age > 50) {
+        $risk_score += 30;
+        print "High Risk: Property over 50 years old (+30 points)\n";
+    } elsif ($age > 25) {
+        $risk_score += 15;
+        print "Medium Risk: Property 25-50 years old (+15 points)\n";
+    } else {
+        $risk_score += 5;
+        print "Low Risk: Modern property (+5 points)\n";
+    }
+    
+    # Size-based risk
+    if ($home->get_square_feet() > 4000) {
+        $risk_score += 10;
+        print "Larger property requires more maintenance (+10 points)\n";
+    }
+    
+    $self->{total_risk_score} += $risk_score;
+    print "  Risk Score: $risk_score\n";
+    return $risk_score;
+}
+
+sub visit_car {
+    my ($self, $car) = @_;
+    print "\n[Risk Assessor] Evaluating Car Risk\n";
+    print "  Vehicle: " . $car->get_year() . " " . $car->get_make() . " " . $car->get_model() . "\n";
+    
+    my $age = 2026 - $car->get_year();
+    my $risk_score = 0;
+    
+    # Age-based risk
+    if ($age > 10) {
+        $risk_score += 25;
+        print "High Risk: Vehicle over 10 years old (+25 points)\n";
+    } elsif ($age > 5) {
+        $risk_score += 12;
+        print "Medium Risk: Vehicle 5-10 years old (+12 points)\n";
+    } else {
+        $risk_score += 5;
+        print "Low Risk: New vehicle (+5 points)\n";
+    }
+    
+    # Mileage-based risk
+    if ($car->get_mileage() > 100000) {
+        $risk_score += 20;
+        print "High mileage vehicle (+20 points)\n";
+    } elsif ($car->get_mileage() > 50000) {
+        $risk_score += 10;
+        print "Moderate mileage (+10 points)\n";
+    }
+    
+    $self->{total_risk_score} += $risk_score;
+    print "  Risk Score: $risk_score\n";
+    return $risk_score;
+}
+
+sub visit_boat {
+    my ($self, $boat) = @_;
+    print "\n[Risk Assessor] Evaluating Boat Risk\n";
+    print "  Boat: " . $boat->get_name() . " (" . $boat->get_type() . ")\n";
+    
+    my $age = 2026 - $boat->get_year();
+    my $risk_score = 0;
+    
+    # Age-based risk
+    if ($age > 15) {
+        $risk_score += 35;
+        print "High Risk: Boat over 15 years old (+35 points)\n";
+    } elsif ($age > 8) {
+        $risk_score += 18;
+        print "Medium Risk: Boat 8-15 years old (+18 points)\n";
+    } else {
+        $risk_score += 8;
+        print "Low Risk: Newer boat (+8 points)\n";
+    }
+    
+    # Size-based risk
+    if ($boat->get_length() > 40) {
+        $risk_score += 15;
+        print "Large vessel requires experienced handling (+15 points)\n";
+    }
+    
+    $self->{total_risk_score} += $risk_score;
+    print "  Risk Score: $risk_score\n";
+    return $risk_score;
+}
+
+sub get_total_risk_score {
+    my $self = shift;
+    return $self->{total_risk_score};
+}
+
+# Concrete Visitor - Detailed Inspector
+package DetailedInspector;
+our @ISA = ('Visitor');
+
+sub new {
+    my $class = shift;
+    my $self = $class->SUPER::new();
+    $self->{inspection_count} = 0;
+    return $self;
+}
+
+sub visit_home {
+    my ($self, $home) = @_;
+    print "\n[Inspector] Conducting Home Inspection\n";
+    print "Location: " . $home->get_address() . "\n";
+    print "Checking foundation and structure\n";
+    print "Inspecting roof condition\n";
+    print "Reviewing electrical systems\n";
+    print "Testing plumbing\n";
+    print "Evaluating HVAC systems\n";
+    print "Inspection Status: COMPLETE\n";
+    $self->{inspection_count}++;
+}
+
+sub visit_car {
+    my ($self, $car) = @_;
+    print "\n[Inspector] Conducting Vehicle Inspection\n";
+    print "Vehicle: " . $car->get_make() . " " . $car->get_model() . "\n";
+    print "Checking engine condition\n";
+    print "Inspecting brake system\n";
+    print "Testing safety features\n";
+    print "Reviewing maintenance records\n";
+    print "Verifying VIN and documentation\n";
+    print "Inspection Status: COMPLETE\n";
+    $self->{inspection_count}++;
+}
+
+sub visit_boat {
+    my ($self, $boat) = @_;
+    print "\n[Inspector] Conducting Marine Inspection\n";
+    print "Vessel: " . $boat->get_name() . "\n";
+    print "Inspecting hull integrity\n";
+    print "Testing engine and propulsion\n";
+    print "Checking safety equipment\n";
+    print "Reviewing navigation systems\n";
+    print "Verifying registration and documentation\n";
+    print "Inspection Status: COMPLETE\n";
+    $self->{inspection_count}++;
+}
+
+sub get_inspection_count {
+    my $self = shift;
+    return $self->{inspection_count};
+}
+
+# Main Program - Demonstrating Visitor Pattern
+package main;
+
+print "=== Insurance Assessment System (Visitor Pattern) ===\n";
+print "Demonstrating multiple operations on stable object hierarchy\n";
+
+# Create insurable items (Elements)
+my @items = (
+    Home->new("123 Main St", 2500, 1985, 350000),
+    Car->new("Toyota", "Camry", 2018, 45000, 18000),
+    Boat->new("Sea Breeze", "Sailboat", 32, 2015, 85000),
+    Home->new("456 Oak Ave", 3200, 2010, 425000),
+    Car->new("Honda", "Civic", 2022, 15000, 25000)
+);
+
+print "\n" . "=" x 70 . "\n";
+print "OPERATION 1: Calculate Insurance Premiums\n";
+print "=" x 70 . "\n";
+
+# Apply Premium Calculator Visitor
+my $premium_calculator = PremiumCalculator->new();
+foreach my $item (@items) {
+    $item->accept($premium_calculator);
+}
+
+printf "\n*** Total Annual Premium: \$%.2f ***\n", $premium_calculator->get_total_premium();
+
+print "\n" . "=" x 70 . "\n";
+print "OPERATION 2: Assess Risk Levels\n";
+print "=" x 70 . "\n";
+
+# Apply Risk Assessor Visitor
+my $risk_assessor = RiskAssessor->new();
+foreach my $item (@items) {
+    $item->accept($risk_assessor);
+}
+
+print "\n*** Total Risk Score: " . $risk_assessor->get_total_risk_score() . " ***\n";
+
+print "\n" . "=" x 70 . "\n";
+print "OPERATION 3: Detailed Inspections\n";
+print "=" x 70 . "\n";
+
+# Apply Inspector Visitor
+my $inspector = DetailedInspector->new();
+foreach my $item (@items) {
+    $item->accept($inspector);
+}
+
+print "\n*** Total Inspections Completed: " . $inspector->get_inspection_count() . " ***\n";
+
+print "\n" . "=" x 70 . "\n";
+print "=== Demonstration Complete ===\n";
+print "\nKey Benefits Shown:\n";
+print "Added 3 operations WITHOUT modifying element classes\n";
+print "Each visitor encapsulates a complete operation\n";
+print "Easy to add new visitors for new operations\n";
+print "Element classes remain stable and simple\n";
+
+#=== Insurance Assessment System (Visitor Pattern) ===
+#Demonstrating multiple operations on stable object hierarchy
+#
+#======================================================================
+#OPERATION 1: Calculate Insurance Premiums
+#======================================================================
+#
+#[Premium Calculator] Assessing Home
+#  Address: 123 Main St
+#  Square Feet: 2500
+#  Year Built: 1985
+#  Value: $350000
+#  Annual Premium: $3084.38
+#
+#[Premium Calculator] Assessing Car
+#  Vehicle: 2018 Toyota Camry
+#  Mileage: 45000 miles
+#  Value: $18000
+#  Annual Premium: $1096.20
+#
+#[Premium Calculator] Assessing Boat
+#  Name: Sea Breeze
+#  Type: Sailboat
+#  Length: 32 feet
+#  Year: 2015
+#  Value: $85000
+#  Annual Premium: $4832.53
+#
+#[Premium Calculator] Assessing Home
+#  Address: 456 Oak Ave
+#  Square Feet: 3200
+#  Year Built: 2010
+#  Value: $425000
+#  Annual Premium: $3253.80
+#
+#[Premium Calculator] Assessing Car
+#  Vehicle: 2022 Honda Civic
+#  Mileage: 15000 miles
+#  Value: $25000
+#  Annual Premium: $1035.00
+#
+#*** Total Annual Premium: $13301.91 ***
+#
+#======================================================================
+#OPERATION 2: Assess Risk Levels
+#======================================================================
+#
+#[Risk Assessor] Evaluating Home Risk
+#  Property: 123 Main St
+#Medium Risk: Property 25-50 years old (+15 points)
+#  Risk Score: 15
+#
+#[Risk Assessor] Evaluating Car Risk
+#  Vehicle: 2018 Toyota Camry
+#Medium Risk: Vehicle 5-10 years old (+12 points)
+#  Risk Score: 12
+#
+#[Risk Assessor] Evaluating Boat Risk
+#  Boat: Sea Breeze (Sailboat)
+#Medium Risk: Boat 8-15 years old (+18 points)
+#  Risk Score: 18
+#
+#[Risk Assessor] Evaluating Home Risk
+#  Property: 456 Oak Ave
+#Low Risk: Modern property (+5 points)
+#  Risk Score: 5
+#
+#[Risk Assessor] Evaluating Car Risk
+#  Vehicle: 2022 Honda Civic
+#Low Risk: New vehicle (+5 points)
+#  Risk Score: 5
+#
+#*** Total Risk Score: 55 ***
+#
+#======================================================================
+#OPERATION 3: Detailed Inspections
+#======================================================================
+#
+#[Inspector] Conducting Home Inspection
+#Location: 123 Main St
+#Checking foundation and structure
+#Inspecting roof condition
+#Reviewing electrical systems
+#Testing plumbing
+#Evaluating HVAC systems
+#Inspection Status: COMPLETE
+#
+#[Inspector] Conducting Vehicle Inspection
+#Vehicle: Toyota Camry
+#Checking engine condition
+#Inspecting brake system
+#Testing safety features
+#Reviewing maintenance records
+#Verifying VIN and documentation
+#Inspection Status: COMPLETE
+#
+#[Inspector] Conducting Marine Inspection
+#Vessel: Sea Breeze
+#Inspecting hull integrity
+#Testing engine and propulsion
+#Checking safety equipment
+#Reviewing navigation systems
+#Verifying registration and documentation
+#Inspection Status: COMPLETE
+#
+#[Inspector] Conducting Home Inspection
+#Location: 456 Oak Ave
+#Checking foundation and structure
+#Inspecting roof condition
+#Reviewing electrical systems
+#Testing plumbing
+#Evaluating HVAC systems
+#Inspection Status: COMPLETE
+#
+#[Inspector] Conducting Vehicle Inspection
+#Vehicle: Honda Civic
+#Checking engine condition
+#Inspecting brake system
+#Testing safety features
+#Reviewing maintenance records
+#Verifying VIN and documentation
+#Inspection Status: COMPLETE
+#
+#*** Total Inspections Completed: 5 ***
+#
+#======================================================================
+#=== Demonstration Complete ===
+#
+#Key Benefits Shown:
+#Added 3 operations WITHOUT modifying element classes
+#Each visitor encapsulates a complete operation
+#Easy to add new visitors for new operations
+#Element classes remain stable and simple
+
+ 
